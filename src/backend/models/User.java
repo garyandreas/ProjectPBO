@@ -17,6 +17,8 @@ public class User implements Serializable {
     private String fullName;
     private String phoneNumber;
     private String currency; // IDR, USD, dll
+    private String language; // id, en, etc
+    private String pin; // 6-digit PIN untuk security
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean isActive;
@@ -31,6 +33,8 @@ public class User implements Serializable {
         this.passwordHash = passwordHash;
         this.fullName = fullName;
         this.currency = "IDR";
+        this.language = "id";
+        this.pin = "000000";
         this.isActive = true;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
@@ -93,6 +97,22 @@ public class User implements Serializable {
         this.currency = currency;
     }
     
+    public String getLanguage() {
+        return language;
+    }
+    
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+    
+    public String getPin() {
+        return pin;
+    }
+    
+    public void setPin(String pin) {
+        this.pin = pin;
+    }
+    
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -125,6 +145,7 @@ public class User implements Serializable {
                 ", email='" + email + '\'' +
                 ", fullName='" + fullName + '\'' +
                 ", currency='" + currency + '\'' +
+                ", language='" + language + '\'' +
                 ", isActive=" + isActive +
                 '}';
     }

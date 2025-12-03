@@ -98,67 +98,117 @@ public class ApplicationController {
     
     private void handleRegister() {
         RegisterDialogModern dialog = new RegisterDialogModern(loginFrame);
+        dialog.addRegisterListener(e -> {
+            // Step 1: Validate account info
+            if (dialog.getCurrentStep() == 1) {
+                String username = dialog.getUsername();
+                String email = dialog.getEmail();
+                String password = dialog.getPassword();
+                String confirmPassword = dialog.getConfirmPassword();
+                
+                if (username.isEmpty()) {
+                    dialog.setStatus("Username tidak boleh kosong");
+                    return;
+                }
+                
+                if (email.isEmpty()) {
+                    dialog.setStatus("Email tidak boleh kosong");
+                    return;
+                }
+                
+                if (!email.contains("@")) {
+                    dialog.setStatus("Format email tidak valid");
+                    return;
+                }
+                
+                if (password.isEmpty()) {
+                    dialog.setStatus("Password tidak boleh kosong");
+                    return;
+                }
+                
+                if (!password.equals(confirmPassword)) {
+                    dialog.setStatus("Password tidak cocok");
+                    return;
+                }
+                
+                if (username.length() < 3) {
+                    dialog.setStatus("Username minimal 3 karakter");
+                    return;
+                }
+                
+                // Move to step 2
+                dialog.showSetupStep();
+                
+            } else if (dialog.getCurrentStep() == 2) {
+                // Step 2: Register dengan PIN, Currency, dan Language
+                String username = dialog.getUsername();
+                String email = dialog.getEmail();
+                String password = dialog.getPassword();
+                String pin = dialog.getPin();
+                String currency = dialog.getCurrency();
+                String language = dialog.getLanguage();
+                
+                // Validate PIN
+                if (pin.isEmpty() || pin.length() != 6 || !pin.matches("\\d+")) {
+                    dialog.setStatus("PIN harus 6 digit angka!");
+                    return;
+                }
+                
+                System.out.println("\n" + "=".repeat(80));
+                System.out.println("👤 REGISTERING NEW USER");
+                System.out.println("=".repeat(80));
+                
+                boolean success = userService.registerUser(username, email, password, username);
+                if (success) {
+                    // Create and setup new user
+                    User newUser = userService.getUserByUsername(username);
+                    System.out.println("✅ User registered: " + newUser.getFullName() + " (ID: " + newUser.getUserId() + ")");
+                    System.out.println("   📧 Email: " + email);
+                    
+                    // Set PIN, Currency, dan Language
+                    newUser.setPin(pin);
+                    newUser.setCurrency(currency);
+                    newUser.setLanguage(language);
+                    userService.updateUser(newUser);
+                    System.out.println("   ✓ PIN set: ****" + pin.substring(2));
+                    System.out.println("   ✓ Currency set: " + currency);
+                    System.out.println("   ✓ Language set: " + language);
+                    
+                    System.out.println("\n📝 Creating default accounts...");
+                    Account acc1 = accountService.createAccount(newUser.getUserId(), "Cash", 
+                                                Account.AccountType.CASH, 0);
+                    System.out.println("   ✓ Created: " + acc1.getAccountName() + " (ID: " + acc1.getAccountId() + ")");
+                    
+                    Account acc2 = accountService.createAccount(newUser.getUserId(), "Bank Mandiri", 
+                                                Account.AccountType.BANK, 0);
+                    System.out.println("   ✓ Created: " + acc2.getAccountName() + " (ID: " + acc2.getAccountId() + ")");
+                    
+                    System.out.println("\n🏷️  Creating default categories...");
+                    categoryService.createDefaultCategories(newUser.getUserId());
+                    System.out.println("   ✓ Categories created");
+                    
+                    System.out.println("\n✅ REGISTRATION COMPLETE");
+                    System.out.println("=".repeat(80) + "\n");
+                    
+                    javax.swing.JOptionPane.showMessageDialog(loginFrame, 
+                        "Registrasi berhasil!\n\n" +
+                        "Akun: " + username + "\n" +
+                        "Email: " + email + "\n" +
+                        "Mata Uang: " + currency + "\n" +
+                        "Bahasa: " + language + "\n\n" +
+                        "PIN sudah disimpan. Silahkan login dengan akun Anda.");
+                    
+                    // Reset form agar siap untuk login
+                    loginFrame.clearFields();
+                    dialog.dispose();
+                } else {
+                    dialog.setStatus("Registrasi gagal! Username atau email mungkin sudah digunakan.");
+                }
+            }
+        });
+        
+        dialog.addCancelListener(e -> dialog.dispose());
         dialog.setVisible(true);
-        
-        String username = dialog.getUsername();
-        String password = dialog.getPassword();
-        String confirmPassword = dialog.getConfirmPassword();
-        
-        if (username.isEmpty()) {
-            dialog.setStatus("Username tidak boleh kosong");
-            return;
-        }
-        
-        if (password.isEmpty()) {
-            dialog.setStatus("Password tidak boleh kosong");
-            return;
-        }
-        
-        if (!password.equals(confirmPassword)) {
-            dialog.setStatus("Password tidak cocok");
-            return;
-        }
-        
-        if (username.length() < 3) {
-            dialog.setStatus("Username minimal 3 karakter");
-            return;
-        }
-        
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("👤 REGISTERING NEW USER");
-        System.out.println("=".repeat(80));
-        
-        boolean success = userService.registerUser(username, "", password, username);
-        if (success) {
-            // Create default accounts and categories for new user
-            User newUser = userService.getUserByUsername(username);
-            System.out.println("✅ User registered: " + newUser.getFullName() + " (ID: " + newUser.getUserId() + ")");
-            
-            System.out.println("\n📝 Creating default accounts...");
-            Account acc1 = accountService.createAccount(newUser.getUserId(), "Cash", 
-                                        Account.AccountType.CASH, 0);
-            System.out.println("   ✓ Created: " + acc1.getAccountName() + " (ID: " + acc1.getAccountId() + ")");
-            
-            Account acc2 = accountService.createAccount(newUser.getUserId(), "Bank Mandiri", 
-                                        Account.AccountType.BANK, 0);
-            System.out.println("   ✓ Created: " + acc2.getAccountName() + " (ID: " + acc2.getAccountId() + ")");
-            
-            System.out.println("\n🏷️  Creating default categories...");
-            categoryService.createDefaultCategories(newUser.getUserId());
-            System.out.println("   ✓ Categories created");
-            
-            System.out.println("\n✅ REGISTRATION COMPLETE");
-            System.out.println("=".repeat(80) + "\n");
-            
-            javax.swing.JOptionPane.showMessageDialog(loginFrame, 
-                "Registrasi berhasil! Silahkan login dengan akun baru Anda.");
-            
-            // Reset form agar siap untuk login
-            loginFrame.clearFields();
-            dialog.dispose();
-        } else {
-            dialog.setStatus("Registrasi gagal! Username mungkin sudah digunakan.");
-        }
     }
     
     private void openMainApplication() {
