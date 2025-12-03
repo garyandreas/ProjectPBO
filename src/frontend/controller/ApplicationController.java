@@ -4,7 +4,6 @@ import backend.models.*;
 import backend.services.*;
 import frontend.ui.*;
 import java.util.*;
-import java.awt.event.ActionEvent;
 
 /**
  * Controller untuk menghubungkan Backend dan Frontend
@@ -19,8 +18,8 @@ public class ApplicationController {
     private FinancialGoalService goalService;
     
     private User currentUser;
-    private LoginFrame loginFrame;
-    private MainFrame mainFrame;
+    private LoginFrameModern loginFrame;
+    private MainFrameModern mainFrame;
     
     public ApplicationController() {
         // Initialize services
@@ -32,7 +31,7 @@ public class ApplicationController {
         this.goalService = new FinancialGoalService();
         
         // Initialize UI
-        this.loginFrame = new LoginFrame();
+        this.loginFrame = new LoginFrameModern();
         this.mainFrame = null;
         
         setupEventHandlers();
@@ -98,50 +97,67 @@ public class ApplicationController {
     }
     
     private void handleRegister() {
-        RegisterDialog dialog = new RegisterDialog(loginFrame);
+        RegisterDialogModern dialog = new RegisterDialogModern(loginFrame);
         dialog.setVisible(true);
         
-        if (dialog.isRegistered()) {
-            String username = dialog.getUsername();
-            String email = dialog.getEmail();
-            String password = dialog.getPassword();
-            String fullName = dialog.getFullName();
+        String username = dialog.getUsername();
+        String password = dialog.getPassword();
+        String confirmPassword = dialog.getConfirmPassword();
+        
+        if (username.isEmpty()) {
+            dialog.setStatus("Username tidak boleh kosong");
+            return;
+        }
+        
+        if (password.isEmpty()) {
+            dialog.setStatus("Password tidak boleh kosong");
+            return;
+        }
+        
+        if (!password.equals(confirmPassword)) {
+            dialog.setStatus("Password tidak cocok");
+            return;
+        }
+        
+        if (username.length() < 3) {
+            dialog.setStatus("Username minimal 3 karakter");
+            return;
+        }
+        
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("👤 REGISTERING NEW USER");
+        System.out.println("=".repeat(80));
+        
+        boolean success = userService.registerUser(username, "", password, username);
+        if (success) {
+            // Create default accounts and categories for new user
+            User newUser = userService.getUserByUsername(username);
+            System.out.println("✅ User registered: " + newUser.getFullName() + " (ID: " + newUser.getUserId() + ")");
             
-            System.out.println("\n" + "=".repeat(80));
-            System.out.println("👤 REGISTERING NEW USER");
-            System.out.println("=".repeat(80));
+            System.out.println("\n📝 Creating default accounts...");
+            Account acc1 = accountService.createAccount(newUser.getUserId(), "Cash", 
+                                        Account.AccountType.CASH, 0);
+            System.out.println("   ✓ Created: " + acc1.getAccountName() + " (ID: " + acc1.getAccountId() + ")");
             
-            boolean success = userService.registerUser(username, email, password, fullName);
-            if (success) {
-                // Create default accounts and categories for new user
-                User newUser = userService.getUserByUsername(username);
-                System.out.println("✅ User registered: " + newUser.getFullName() + " (ID: " + newUser.getUserId() + ")");
-                
-                System.out.println("\n📝 Creating default accounts...");
-                Account acc1 = accountService.createAccount(newUser.getUserId(), "Cash", 
-                                            Account.AccountType.CASH, 0);
-                System.out.println("   ✓ Created: " + acc1.getAccountName() + " (ID: " + acc1.getAccountId() + ")");
-                
-                Account acc2 = accountService.createAccount(newUser.getUserId(), "Bank Mandiri", 
-                                            Account.AccountType.BANK, 0);
-                System.out.println("   ✓ Created: " + acc2.getAccountName() + " (ID: " + acc2.getAccountId() + ")");
-                
-                System.out.println("\n🏷️  Creating default categories...");
-                categoryService.createDefaultCategories(newUser.getUserId());
-                System.out.println("   ✓ Categories created");
-                
-                System.out.println("\n✅ REGISTRATION COMPLETE");
-                System.out.println("=".repeat(80) + "\n");
-                
-                javax.swing.JOptionPane.showMessageDialog(loginFrame, 
-                    "Registrasi berhasil! Silahkan login dengan akun baru Anda.");
-                
-                // Reset form agar siap untuk login
-                loginFrame.clearFields();
-            } else {
-                javax.swing.JOptionPane.showMessageDialog(loginFrame, 
-                    "Registrasi gagal! Username atau email sudah terdaftar.");
-            }
+            Account acc2 = accountService.createAccount(newUser.getUserId(), "Bank Mandiri", 
+                                        Account.AccountType.BANK, 0);
+            System.out.println("   ✓ Created: " + acc2.getAccountName() + " (ID: " + acc2.getAccountId() + ")");
+            
+            System.out.println("\n🏷️  Creating default categories...");
+            categoryService.createDefaultCategories(newUser.getUserId());
+            System.out.println("   ✓ Categories created");
+            
+            System.out.println("\n✅ REGISTRATION COMPLETE");
+            System.out.println("=".repeat(80) + "\n");
+            
+            javax.swing.JOptionPane.showMessageDialog(loginFrame, 
+                "Registrasi berhasil! Silahkan login dengan akun baru Anda.");
+            
+            // Reset form agar siap untuk login
+            loginFrame.clearFields();
+            dialog.dispose();
+        } else {
+            dialog.setStatus("Registrasi gagal! Username mungkin sudah digunakan.");
         }
     }
     
@@ -154,8 +170,8 @@ public class ApplicationController {
         System.out.println("DEBUG: LoginFrame hidden");
         
         // Create and show main frame dengan close handler
-        mainFrame = new MainFrame();
-        System.out.println("DEBUG: MainFrame created");
+        mainFrame = new MainFrameModern();
+        System.out.println("DEBUG: MainFrameModern created");
         
         mainFrame.setDefaultCloseOperation(javax.swing.JFrame.DO_NOTHING_ON_CLOSE);
         mainFrame.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -165,6 +181,9 @@ public class ApplicationController {
                 showLoginScreen();
             }
         });
+        
+        // Set user greeting
+        mainFrame.setUserGreeting(currentUser.getFullName());
         
         // Setup event handlers untuk MainFrame buttons
         setupMainFrameHandlers();
@@ -218,8 +237,17 @@ public class ApplicationController {
         String account = mainFrame.getSelectedAccount();
         String type = mainFrame.getTransactionType();
         String category = mainFrame.getTransactionCategory();
-        double amount = mainFrame.getTransactionAmount();
+        String amountStr = mainFrame.getTransactionAmount();
         String description = mainFrame.getTransactionDescription();
+        
+        // Parse amount
+        double amount;
+        try {
+            amount = Double.parseDouble(amountStr);
+        } catch (NumberFormatException e) {
+            javax.swing.JOptionPane.showMessageDialog(mainFrame, "Jumlah harus berupa angka!");
+            return;
+        }
         
         System.out.println("\n=== DEBUG: handleAddTransaction called ===");
         System.out.println("  Current User: " + currentUser.getFullName() + " (ID: " + currentUser.getUserId() + ")");
