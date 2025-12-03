@@ -19,6 +19,7 @@ public class User implements Serializable {
     private String currency; // IDR, USD, dll
     private String language; // id, en, etc
     private String pin; // 6-digit PIN untuk security
+    private String mainGoal; // TAMBAHAN: Untuk menyimpan tujuan utama user
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean isActive;
@@ -112,6 +113,14 @@ public class User implements Serializable {
     public void setPin(String pin) {
         this.pin = pin;
     }
+
+    public String getMainGoal() {
+        return mainGoal;
+    }
+
+    public void setMainGoal(String mainGoal) {
+        this.mainGoal = mainGoal;
+    }
     
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -146,6 +155,7 @@ public class User implements Serializable {
                 ", fullName='" + fullName + '\'' +
                 ", currency='" + currency + '\'' +
                 ", language='" + language + '\'' +
+                ", mainGoal='" + mainGoal + '\'' +
                 ", isActive=" + isActive +
                 '}';
     }
