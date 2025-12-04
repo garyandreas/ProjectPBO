@@ -20,7 +20,6 @@ public class ApplicationController {
     private LoginFrameModern loginFrame;
     private MainFrameModern mainFrame;
     
-    // Simpan list budget yang sedang tampil untuk mapping saat delete
     private List<Budget> currentBudgets;
     
     public ApplicationController() {
@@ -120,12 +119,11 @@ public class ApplicationController {
         mainFrame.addTransactionTypeListener(e -> refreshCategoryDropdown());
         
         mainFrame.addBudgetListener(e -> handleAddBudget());
-        mainFrame.addDeleteBudgetListener(e -> handleDeleteBudget()); // Handler Hapus
+        mainFrame.addDeleteBudgetListener(e -> handleDeleteBudget());
         
         mainFrame.addGoalListener(e -> JOptionPane.showMessageDialog(mainFrame, "Fitur Goal akan datang!"));
     }
     
-    // --- FITUR DELETE BUDGET ---
     private void handleDeleteBudget() {
         int selectedRow = mainFrame.getSelectedBudgetRow();
         if (selectedRow >= 0 && currentBudgets != null && selectedRow < currentBudgets.size()) {
@@ -187,12 +185,10 @@ public class ApplicationController {
         }
     }
     
-    // --- LOGIC TRANSAKSI DIPERBAIKI (LEBIH ROBUST) ---
     private void handleAddTransaction() {
         String accName = mainFrame.getSelectedAccount();
         String catName = mainFrame.getTransactionCategory();
-        // Gunakan Index untuk memastikan tipe
-        int typeIndex = mainFrame.getTransactionTypeIndex(); // 0 = Income, 1 = Expense
+        int typeIndex = mainFrame.getTransactionTypeIndex(); 
         
         try {
             double amount = Double.parseDouble(mainFrame.getTransactionAmount());
@@ -202,28 +198,19 @@ public class ApplicationController {
                                              ? Transaction.TransactionType.INCOME 
                                              : Transaction.TransactionType.EXPENSE;
             
-            // Ambil Account
             Account acc = accountService.getAccountsByUser(currentUser.getUserId()).stream()
                             .filter(a -> a.getAccountName().equals(accName)).findFirst().orElse(null);
             
-            // Ambil Kategori: Filter juga berdasarkan TIPE agar tidak tertukar nama kategori yang sama
             Category.CategoryType catType = (type == Transaction.TransactionType.INCOME) ? Category.CategoryType.INCOME : Category.CategoryType.EXPENSE;
-            
             Category cat = categoryService.getCategoriesByType(currentUser.getUserId(), catType).stream()
                             .filter(c -> c.getCategoryName().equals(catName)).findFirst().orElse(null);
                             
             if (acc != null && cat != null) {
-                boolean success = transactionService.createTransaction(acc.getAccountId(), currentUser.getUserId(), cat.getCategoryId(), type, amount, mainFrame.getTransactionDescription(), 0);
+                boolean success = transactionService.createTransaction(
+                    acc.getAccountId(), currentUser.getUserId(), cat.getCategoryId(), type, amount, mainFrame.getTransactionDescription(), 0
+                );
                 
                 if (success) {
-                    if (type == Transaction.TransactionType.EXPENSE) {
-                        Budget budget = budgetService.getBudgetByCategory(currentUser.getUserId(), cat.getCategoryId());
-                        if (budget != null) {
-                            budget.addSpent(amount);
-                            budgetService.updateBudget(budget);
-                        }
-                    }
-                    
                     JOptionPane.showMessageDialog(mainFrame, "Transaksi Berhasil!");
                     mainFrame.clearTransactionForm();
                     updateDashboard();
@@ -232,7 +219,6 @@ public class ApplicationController {
                     JOptionPane.showMessageDialog(mainFrame, "Gagal! Saldo mungkin tidak cukup.");
                 }
             } else {
-                System.out.println("DEBUG: Account/Category not found. Acc: " + accName + ", Cat: " + catName + ", TypeIdx: " + typeIndex);
                 JOptionPane.showMessageDialog(mainFrame, "Gagal: Kategori atau Akun tidak valid.");
             }
         } catch (NumberFormatException e) {
@@ -242,7 +228,6 @@ public class ApplicationController {
     
     private void refreshBudgetTable() {
         if (mainFrame != null && currentUser != null) {
-            // Simpan ke variable global agar bisa dipakai delete
             this.currentBudgets = budgetService.getBudgetsByUser(currentUser.getUserId());
             mainFrame.updateBudgetTable(currentBudgets, categoryService);
         }
@@ -255,7 +240,6 @@ public class ApplicationController {
     }
     
     private void refreshCategoryDropdown() {
-        // Gunakan index agar konsisten
         int typeIndex = mainFrame.getTransactionTypeIndex();
         Category.CategoryType type = (typeIndex == 0) ? Category.CategoryType.INCOME : Category.CategoryType.EXPENSE;
         

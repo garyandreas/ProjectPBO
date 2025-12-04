@@ -1,23 +1,19 @@
 package backend.services;
 
-import backend.models.*;
-import java.util.*;
+import backend.models.Transaction;
+import backend.models.Account;
 import java.io.*;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 
-/**
- * Service untuk mengelola Transaction
- * Mencatat dan mengelola transaksi pemasukan dan pengeluaran
- */
 public class TransactionService {
+    private static final String TRANSACTIONS_DATA_FILE = "transactions_data.dat";
     private List<Transaction> transactions = new ArrayList<>();
     private AccountService accountService;
     private BudgetService budgetService;
     private int nextTransactionId = 1;
-    
-    private static final String TRANSACTIONS_DATA_FILE = "transactions_data.dat";
     
     public TransactionService(AccountService accountService, BudgetService budgetService) {
         this.accountService = accountService;
@@ -25,48 +21,59 @@ public class TransactionService {
         loadTransactionsFromFile();
     }
     
-    /**
-     * Membuat transaksi baru
-     */
+    // --- CORE FEATURE: CREATE TRANSACTION ---
     public boolean createTransaction(int accountId, int userId, int categoryId, 
                                      Transaction.TransactionType type, double amount, 
                                      String description, int subCategoryId) {
-        // Validasi saldo
+        System.out.println("DEBUG: Memulai createTransaction...");
+
+        // 1. Validasi Akun & Saldo
         Account account = accountService.getAccountById(accountId);
-        if (account == null) return false;
-        
-        if (type == Transaction.TransactionType.EXPENSE && account.getBalance() < amount) {
-            System.out.println("Saldo tidak cukup!");
+        if (account == null) {
+            System.out.println("GAGAL: Akun dengan ID " + accountId + " tidak ditemukan.");
             return false;
         }
         
-        // Buat transaksi
-        Transaction transaction = new Transaction(accountId, userId, categoryId, type, amount);
-        transaction.setTransactionId(nextTransactionId++);
-        transaction.setDescription(description);
-        transaction.setSubCategoryId(subCategoryId);
-        
-        // Update saldo account
-        if (type == Transaction.TransactionType.INCOME) {
-            accountService.addBalance(accountId, amount);
-        } else if (type == Transaction.TransactionType.EXPENSE) {
-            accountService.deductBalance(accountId, amount);
+        if (type == Transaction.TransactionType.EXPENSE && account.getBalance() < amount) {
+            System.out.println("GAGAL: Saldo tidak cukup! Saldo: " + account.getBalance() + ", Diminta: " + amount);
+            return false;
         }
         
-        // Update budget jika expense
-        if (type == Transaction.TransactionType.EXPENSE) {
+        // 2. Update Saldo Akun
+        boolean balanceUpdated = false;
+        if (type == Transaction.TransactionType.INCOME) {
+            balanceUpdated = accountService.updateBalance(accountId, amount);
+        } else {
+            balanceUpdated = accountService.updateBalance(accountId, -amount);
+        }
+        
+        if (!balanceUpdated) {
+            System.out.println("GAGAL: Gagal update saldo di database akun.");
+            return false;
+        }
+        
+        // 3. Update Budget (Khusus Pengeluaran)
+        if (type == Transaction.TransactionType.EXPENSE && budgetService != null) {
             budgetService.updateBudgetSpent(userId, categoryId, amount);
         }
         
+        // 4. Simpan Transaksi Baru
+        // Menggunakan Constructor 5 parameter yang sesuai dengan Transaction.java
+        Transaction transaction = new Transaction(accountId, userId, categoryId, type, amount);
+        transaction.setDescription(description); 
+        
+        transaction.setTransactionId(nextTransactionId++);
+        transaction.setSubCategoryId(subCategoryId);
+        
         transactions.add(transaction);
-        System.out.println("Transaksi berhasil dicatat!");
         saveTransactionsToFile();
+        
+        System.out.println("SUKSES: Transaksi berhasil disimpan. ID: " + transaction.getTransactionId());
         return true;
     }
     
-    /**
-     * Dapatkan transaksi berdasarkan ID
-     */
+    // --- GETTERS & FILTERS ---
+
     public Transaction getTransactionById(int transactionId) {
         return transactions.stream()
                 .filter(t -> t.getTransactionId() == transactionId)
@@ -74,36 +81,24 @@ public class TransactionService {
                 .orElse(null);
     }
     
-    /**
-     * Dapatkan semua transaksi pengguna
-     */
     public List<Transaction> getTransactionsByUser(int userId) {
         return transactions.stream()
                 .filter(t -> t.getUserId() == userId)
                 .collect(Collectors.toList());
     }
     
-    /**
-     * Dapatkan transaksi berdasarkan account
-     */
     public List<Transaction> getTransactionsByAccount(int accountId) {
         return transactions.stream()
                 .filter(t -> t.getAccountId() == accountId)
                 .collect(Collectors.toList());
     }
     
-    /**
-     * Dapatkan transaksi berdasarkan kategori
-     */
     public List<Transaction> getTransactionsByCategory(int userId, int categoryId) {
         return getTransactionsByUser(userId).stream()
                 .filter(t -> t.getCategoryId() == categoryId)
                 .collect(Collectors.toList());
     }
     
-    /**
-     * Dapatkan transaksi dalam periode tertentu
-     */
     public List<Transaction> getTransactionsByPeriod(int userId, LocalDateTime startDate, LocalDateTime endDate) {
         return getTransactionsByUser(userId).stream()
                 .filter(t -> !t.getTransactionDate().isBefore(startDate) && 
@@ -111,120 +106,89 @@ public class TransactionService {
                 .collect(Collectors.toList());
     }
     
-    /**
-     * Dapatkan transaksi bulan ini
-     */
     public List<Transaction> getTransactionsByMonth(int userId, YearMonth month) {
         LocalDateTime startDate = month.atDay(1).atStartOfDay();
         LocalDateTime endDate = month.atEndOfMonth().atTime(23, 59, 59);
         return getTransactionsByPeriod(userId, startDate, endDate);
     }
     
-    /**
-     * Update transaksi
-     */
+    public List<Transaction> getAllTransactions() {
+        return new ArrayList<>(transactions);
+    }
+
+    public double getTotalIncome(int userId, YearMonth month) {
+        return getTransactionsByMonth(userId, month).stream()
+                .filter(t -> t.getTransactionType() == Transaction.TransactionType.INCOME)
+                .mapToDouble(Transaction::getAmount).sum();
+    }
+    
+    public double getTotalExpense(int userId, YearMonth month) {
+        return getTransactionsByMonth(userId, month).stream()
+                .filter(t -> t.getTransactionType() == Transaction.TransactionType.EXPENSE)
+                .mapToDouble(Transaction::getAmount).sum();
+    }
+    
+    // --- UPDATE & DELETE ---
+
     public boolean updateTransaction(Transaction transaction) {
-        Transaction existingTransaction = getTransactionById(transaction.getTransactionId());
-        if (existingTransaction != null) {
-            existingTransaction.setDescription(transaction.getDescription());
-            existingTransaction.setNotes(transaction.getNotes());
+        Transaction existing = getTransactionById(transaction.getTransactionId());
+        if (existing != null) {
+            existing.setDescription(transaction.getDescription());
+            existing.setNotes(transaction.getNotes());
             saveTransactionsToFile();
             return true;
         }
         return false;
     }
     
-    /**
-     * Delete transaksi
-     */
     public boolean deleteTransaction(int transactionId) {
-        Transaction transaction = getTransactionById(transactionId);
-        if (transaction != null) {
-            // Rollback saldo account
-            Account account = accountService.getAccountById(transaction.getAccountId());
-            if (account != null) {
-                if (transaction.getTransactionType() == Transaction.TransactionType.INCOME) {
-                    accountService.deductBalance(account.getAccountId(), transaction.getAmount());
-                } else if (transaction.getTransactionType() == Transaction.TransactionType.EXPENSE) {
-                    accountService.addBalance(account.getAccountId(), transaction.getAmount());
-                }
+        Transaction t = getTransactionById(transactionId);
+        if (t != null) {
+            // Rollback saldo (kembalikan uang)
+            if (t.getTransactionType() == Transaction.TransactionType.INCOME) {
+                accountService.updateBalance(t.getAccountId(), -t.getAmount());
+            } else {
+                accountService.updateBalance(t.getAccountId(), t.getAmount());
+                // Note: Budget tidak dikembalikan otomatis untuk simplifikasi
             }
             
-            boolean result = transactions.remove(transaction);
-            if (result) {
-                saveTransactionsToFile();
-            }
-            return result;
+            transactions.remove(t);
+            saveTransactionsToFile();
+            return true;
         }
         return false;
     }
     
-    /**
-     * Dapatkan total income dalam bulan
-     */
-    public double getTotalIncome(int userId, YearMonth month) {
-        return getTransactionsByMonth(userId, month).stream()
-                .filter(t -> t.getTransactionType() == Transaction.TransactionType.INCOME)
-                .mapToDouble(Transaction::getAmount)
-                .sum();
-    }
+    // --- FILE HANDLING ---
     
-    /**
-     * Dapatkan total expense dalam bulan
-     */
-    public double getTotalExpense(int userId, YearMonth month) {
-        return getTransactionsByMonth(userId, month).stream()
-                .filter(t -> t.getTransactionType() == Transaction.TransactionType.EXPENSE)
-                .mapToDouble(Transaction::getAmount)
-                .sum();
-    }
-    
-    /**
-     * Dapatkan semua transaksi
-     */
-    public List<Transaction> getAllTransactions() {
-        return new ArrayList<>(transactions);
-    }
-    
-    /**
-     * Load transaksi dari file
-     */
     @SuppressWarnings("unchecked")
     private void loadTransactionsFromFile() {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(TRANSACTIONS_DATA_FILE))) {
-            transactions = (List<Transaction>) ois.readObject();
-            
-            // Rebuild nextTransactionId
-            if (!transactions.isEmpty()) {
-                nextTransactionId = transactions.stream()
-                        .mapToInt(Transaction::getTransactionId)
-                        .max()
-                        .orElse(0) + 1;
+        File file = new File(TRANSACTIONS_DATA_FILE);
+        if (file.exists()) {
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+                Object obj = ois.readObject();
+                if (obj instanceof List) {
+                    transactions = (List<Transaction>) obj;
+                    if (!transactions.isEmpty()) {
+                        nextTransactionId = transactions.stream()
+                                .mapToInt(Transaction::getTransactionId).max().orElse(0) + 1;
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Gagal memuat transaksi: " + e.getMessage());
+                transactions = new ArrayList<>();
             }
-            System.out.println("Transactions loaded from file: " + transactions.size() + " transactions");
-        } catch (FileNotFoundException e) {
-            System.out.println("Transactions file not found. Starting with empty list.");
-        } catch (IOException | ClassNotFoundException e) {
-            System.err.println("Error loading transactions: " + e.getMessage());
         }
     }
     
-    /**
-     * Save transaksi ke file
-     */
     private void saveTransactionsToFile() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(TRANSACTIONS_DATA_FILE))) {
             oos.writeObject(transactions);
-            oos.flush();
-            System.out.println("Transactions saved to file");
         } catch (IOException e) {
-            System.err.println("Error saving transactions: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     
-    /**
-     * Reload transactions dari file
-     */
     public void reloadFromFile() {
         loadTransactionsFromFile();
     }

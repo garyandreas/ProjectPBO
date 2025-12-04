@@ -68,7 +68,16 @@ public class BudgetService {
         }
     }
     
-    // --- FITUR BARU: HAPUS BUDGET ---
+    // Method yang dipanggil oleh TransactionService
+    public void updateBudgetSpent(int userId, int categoryId, double amount) {
+        Budget budget = getBudgetByCategory(userId, categoryId);
+        if (budget != null) {
+            budget.addSpent(amount); // Memanggil method di Model Budget
+            updateBudget(budget);
+            System.out.println("DEBUG: Budget updated. New spent: " + budget.getSpent());
+        }
+    }
+    
     public boolean deleteBudget(String budgetId) {
         boolean removed = budgets.removeIf(b -> b.getBudgetId().equals(budgetId));
         if (removed) {

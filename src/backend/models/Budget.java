@@ -1,7 +1,7 @@
 package backend.models;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.YearMonth;
 
 public class Budget implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -14,11 +14,9 @@ public class Budget implements Serializable {
     private int userId;
     private int categoryId;
     private double budgetLimit;
-    private double spent; // Total pengeluaran saat ini
+    private double spent;
     private BudgetPeriod period;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    private int alertThreshold; // Persentase untuk notifikasi (misal 80%)
+    private YearMonth monthPeriod; // Untuk melacak budget bulan tertentu
 
     public Budget(int userId, int categoryId, double budgetLimit, BudgetPeriod period) {
         this.budgetId = java.util.UUID.randomUUID().toString();
@@ -27,27 +25,15 @@ public class Budget implements Serializable {
         this.budgetLimit = budgetLimit;
         this.period = period;
         this.spent = 0;
-        this.startDate = LocalDateTime.now();
-        this.alertThreshold = 80; // Default warning di 80%
+        this.monthPeriod = YearMonth.now();
     }
 
-    // --- Logic Methods ---
-    
+    // PENTING: Method ini dibutuhkan oleh BudgetService
     public void addSpent(double amount) {
         this.spent += amount;
     }
-    
-    public double getSpentPercentage() {
-        if (budgetLimit == 0) return 0;
-        return (spent / budgetLimit) * 100;
-    }
-    
-    public double getRemaining() {
-        return budgetLimit - spent;
-    }
 
-    // --- Getters & Setters ---
-
+    // Getters & Setters
     public String getBudgetId() { return budgetId; }
     public void setBudgetId(String budgetId) { this.budgetId = budgetId; }
 
@@ -58,7 +44,7 @@ public class Budget implements Serializable {
     public void setCategoryId(int categoryId) { this.categoryId = categoryId; }
 
     public double getBudgetLimit() { return budgetLimit; }
-    public void setBudgetLimit(double budgetLimit) { this.budgetLimit = budgetLimit; }
+    public void setBudgetLimit(double limit) { this.budgetLimit = limit; }
 
     public double getSpent() { return spent; }
     public void setSpent(double spent) { this.spent = spent; }
@@ -66,6 +52,6 @@ public class Budget implements Serializable {
     public BudgetPeriod getPeriod() { return period; }
     public void setPeriod(BudgetPeriod period) { this.period = period; }
     
-    public int getAlertThreshold() { return alertThreshold; }
-    public void setAlertThreshold(int alertThreshold) { this.alertThreshold = alertThreshold; }
+    public YearMonth getMonthPeriod() { return monthPeriod; }
+    public void setMonthPeriod(YearMonth monthPeriod) { this.monthPeriod = monthPeriod; }
 }

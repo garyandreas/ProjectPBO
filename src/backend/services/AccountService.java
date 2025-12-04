@@ -158,6 +158,19 @@ public class AccountService {
         }
         return false;
     }
+
+    /**
+     * Update saldo (Method BARU untuk TransactionService)
+     * Jika amount positif -> addBalance
+     * Jika amount negatif -> deductBalance (dengan nilai absolut)
+     */
+    public boolean updateBalance(int accountId, double amount) {
+        if (amount >= 0) {
+            return addBalance(accountId, amount);
+        } else {
+            return deductBalance(accountId, Math.abs(amount));
+        }
+    }
     
     /**
      * Transfer antar account
