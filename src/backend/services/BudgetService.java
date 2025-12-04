@@ -22,9 +22,10 @@ public class BudgetService {
                 Object obj = ois.readObject();
                 if (obj instanceof List) {
                     budgets = (List<Budget>) obj;
+                } else {
+                    budgets = new ArrayList<>();
                 }
             } catch (Exception e) {
-                // Jika error, reset list
                 budgets = new ArrayList<>();
             }
         }
@@ -39,7 +40,6 @@ public class BudgetService {
     }
 
     public Budget createBudget(int userId, int categoryId, double limit, Budget.BudgetPeriod period) {
-        // Cek apakah budget sudah ada, jika ya, update saja
         Optional<Budget> existing = budgets.stream()
             .filter(b -> b.getUserId() == userId && b.getCategoryId() == categoryId)
             .findFirst();
@@ -66,6 +66,15 @@ public class BudgetService {
                 return;
             }
         }
+    }
+    
+    // --- FITUR BARU: HAPUS BUDGET ---
+    public boolean deleteBudget(String budgetId) {
+        boolean removed = budgets.removeIf(b -> b.getBudgetId().equals(budgetId));
+        if (removed) {
+            saveToFile();
+        }
+        return removed;
     }
 
     public List<Budget> getBudgetsByUser(int userId) {

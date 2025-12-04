@@ -20,11 +20,14 @@ public class ApplicationController {
     private LoginFrameModern loginFrame;
     private MainFrameModern mainFrame;
     
+    // Simpan list budget yang sedang tampil untuk mapping saat delete
+    private List<Budget> currentBudgets;
+    
     public ApplicationController() {
         this.userService = new UserService();
         this.accountService = new AccountService();
         this.categoryService = new CategoryService();
-        this.budgetService = new BudgetService(); // Init Budget Service
+        this.budgetService = new BudgetService();
         this.transactionService = new TransactionService(accountService, budgetService);
         this.goalService = new FinancialGoalService();
         
@@ -46,7 +49,6 @@ public class ApplicationController {
             this.currentUser = user;
             LocalizationUtils.setLanguage(user.getLanguage());
             
-            // Reload All Data
             accountService.reloadFromFile();
             categoryService.reloadFromFile();
             transactionService.reloadFromFile();
@@ -110,14 +112,44 @@ public class ApplicationController {
         
         mainFrame.setVisible(true);
         updateDashboard();
-        refreshBudgetTable(); // LOAD DATA BUDGET
+        refreshBudgetTable();
     }
     
     private void setupMainFrameHandlers() {
         mainFrame.addTransactionListener(e -> handleAddTransaction());
         mainFrame.addTransactionTypeListener(e -> refreshCategoryDropdown());
+        
         mainFrame.addBudgetListener(e -> handleAddBudget());
+        mainFrame.addDeleteBudgetListener(e -> handleDeleteBudget()); // Handler Hapus
+        
         mainFrame.addGoalListener(e -> JOptionPane.showMessageDialog(mainFrame, "Fitur Goal akan datang!"));
+    }
+    
+    // --- FITUR DELETE BUDGET ---
+    private void handleDeleteBudget() {
+        int selectedRow = mainFrame.getSelectedBudgetRow();
+        if (selectedRow >= 0 && currentBudgets != null && selectedRow < currentBudgets.size()) {
+            Budget selectedBudget = currentBudgets.get(selectedRow);
+            Category cat = categoryService.getCategoryById(selectedBudget.getCategoryId());
+            String catName = (cat != null) ? cat.getCategoryName() : "Unknown";
+            
+            int confirm = JOptionPane.showConfirmDialog(mainFrame, 
+                "Hapus anggaran untuk kategori '" + catName + "'?", 
+                "Konfirmasi Hapus", 
+                JOptionPane.YES_NO_OPTION);
+                
+            if (confirm == JOptionPane.YES_OPTION) {
+                boolean deleted = budgetService.deleteBudget(selectedBudget.getBudgetId());
+                if (deleted) {
+                    refreshBudgetTable();
+                    JOptionPane.showMessageDialog(mainFrame, "Budget dihapus.");
+                } else {
+                    JOptionPane.showMessageDialog(mainFrame, "Gagal menghapus.");
+                }
+            }
+        } else {
+            JOptionPane.showMessageDialog(mainFrame, "Pilih budget yang akan dihapus dari tabel.");
+        }
     }
     
     private void handleAddBudget() {
@@ -155,26 +187,35 @@ public class ApplicationController {
         }
     }
     
+    // --- LOGIC TRANSAKSI DIPERBAIKI (LEBIH ROBUST) ---
     private void handleAddTransaction() {
         String accName = mainFrame.getSelectedAccount();
         String catName = mainFrame.getTransactionCategory();
-        String typeStr = mainFrame.getTransactionType();
+        // Gunakan Index untuk memastikan tipe
+        int typeIndex = mainFrame.getTransactionTypeIndex(); // 0 = Income, 1 = Expense
         
         try {
             double amount = Double.parseDouble(mainFrame.getTransactionAmount());
             if (amount <= 0) throw new NumberFormatException();
             
-            Transaction.TransactionType type = (typeStr.equals(LocalizationUtils.getString("trans.type.income")) || typeStr.equals("Pemasukan")) 
-                                             ? Transaction.TransactionType.INCOME : Transaction.TransactionType.EXPENSE;
+            Transaction.TransactionType type = (typeIndex == 0) 
+                                             ? Transaction.TransactionType.INCOME 
+                                             : Transaction.TransactionType.EXPENSE;
             
-            Account acc = accountService.getAccountsByUser(currentUser.getUserId()).stream().filter(a -> a.getAccountName().equals(accName)).findFirst().orElse(null);
-            Category cat = categoryService.getCategoriesByUser(currentUser.getUserId()).stream().filter(c -> c.getCategoryName().equals(catName)).findFirst().orElse(null);
+            // Ambil Account
+            Account acc = accountService.getAccountsByUser(currentUser.getUserId()).stream()
+                            .filter(a -> a.getAccountName().equals(accName)).findFirst().orElse(null);
+            
+            // Ambil Kategori: Filter juga berdasarkan TIPE agar tidak tertukar nama kategori yang sama
+            Category.CategoryType catType = (type == Transaction.TransactionType.INCOME) ? Category.CategoryType.INCOME : Category.CategoryType.EXPENSE;
+            
+            Category cat = categoryService.getCategoriesByType(currentUser.getUserId(), catType).stream()
+                            .filter(c -> c.getCategoryName().equals(catName)).findFirst().orElse(null);
                             
             if (acc != null && cat != null) {
                 boolean success = transactionService.createTransaction(acc.getAccountId(), currentUser.getUserId(), cat.getCategoryId(), type, amount, mainFrame.getTransactionDescription(), 0);
                 
                 if (success) {
-                    // JIKA PENGELUARAN, UPDATE BUDGET
                     if (type == Transaction.TransactionType.EXPENSE) {
                         Budget budget = budgetService.getBudgetByCategory(currentUser.getUserId(), cat.getCategoryId());
                         if (budget != null) {
@@ -186,10 +227,13 @@ public class ApplicationController {
                     JOptionPane.showMessageDialog(mainFrame, "Transaksi Berhasil!");
                     mainFrame.clearTransactionForm();
                     updateDashboard();
-                    refreshBudgetTable(); // REFRESH TABEL BUDGET
+                    refreshBudgetTable(); 
                 } else {
                     JOptionPane.showMessageDialog(mainFrame, "Gagal! Saldo mungkin tidak cukup.");
                 }
+            } else {
+                System.out.println("DEBUG: Account/Category not found. Acc: " + accName + ", Cat: " + catName + ", TypeIdx: " + typeIndex);
+                JOptionPane.showMessageDialog(mainFrame, "Gagal: Kategori atau Akun tidak valid.");
             }
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(mainFrame, "Jumlah tidak valid!");
@@ -198,8 +242,9 @@ public class ApplicationController {
     
     private void refreshBudgetTable() {
         if (mainFrame != null && currentUser != null) {
-            List<Budget> budgets = budgetService.getBudgetsByUser(currentUser.getUserId());
-            mainFrame.updateBudgetTable(budgets, categoryService);
+            // Simpan ke variable global agar bisa dipakai delete
+            this.currentBudgets = budgetService.getBudgetsByUser(currentUser.getUserId());
+            mainFrame.updateBudgetTable(currentBudgets, categoryService);
         }
     }
     
@@ -210,9 +255,10 @@ public class ApplicationController {
     }
     
     private void refreshCategoryDropdown() {
-        String typeStr = mainFrame.getTransactionType();
-        Category.CategoryType type = (typeStr.equals(LocalizationUtils.getString("trans.type.income")) || typeStr.equals("Pemasukan")) 
-                                     ? Category.CategoryType.INCOME : Category.CategoryType.EXPENSE;
+        // Gunakan index agar konsisten
+        int typeIndex = mainFrame.getTransactionTypeIndex();
+        Category.CategoryType type = (typeIndex == 0) ? Category.CategoryType.INCOME : Category.CategoryType.EXPENSE;
+        
         List<Category> cats = categoryService.getCategoriesByType(currentUser.getUserId(), type);
         List<String> names = cats.stream().map(Category::getCategoryName).collect(Collectors.toList());
         mainFrame.setAvailableCategories(names);

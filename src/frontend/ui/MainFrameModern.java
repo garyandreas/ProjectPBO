@@ -35,6 +35,7 @@ public class MainFrameModern extends JFrame {
     private JTable budgetTable;
     private DefaultTableModel budgetTableModel;
     private ModernButton addBudgetButton;
+    private ModernButton deleteBudgetButton; // TOMBOL BARU
     
     // Goals & Report
     private JPanel goalsPanel;
@@ -67,7 +68,7 @@ public class MainFrameModern extends JFrame {
         
         tabbedPane.addTab(LocalizationUtils.getString("tab.dashboard"), createDashboardPanel());
         tabbedPane.addTab(LocalizationUtils.getString("tab.transaction"), createTransactionPanel());
-        tabbedPane.addTab(LocalizationUtils.getString("tab.budget"), createBudgetPanel()); // TAB BUDGET
+        tabbedPane.addTab(LocalizationUtils.getString("tab.budget"), createBudgetPanel()); 
         tabbedPane.addTab(LocalizationUtils.getString("tab.goal"), createGoalPanel());
         tabbedPane.addTab(LocalizationUtils.getString("tab.report"), createReportPanel());
         
@@ -133,7 +134,6 @@ public class MainFrameModern extends JFrame {
         
         panel.add(centerPanel, BorderLayout.CENTER);
         
-        // Quick Action Button
         JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         southPanel.setBackground(ModernTheme.BACKGROUND);
         ModernButton quickAddBtn = new ModernButton("+ Catat Transaksi Baru", ModernTheme.PRIMARY, ModernTheme.PRIMARY_LIGHT);
@@ -243,7 +243,7 @@ public class MainFrameModern extends JFrame {
         return panel;
     }
 
-    // --- BUDGET (FOKUS UPDATE) ---
+    // --- BUDGET (UPDATED WITH DELETE BUTTON) ---
     private JPanel createBudgetPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(ModernTheme.BACKGROUND);
@@ -283,11 +283,20 @@ public class MainFrameModern extends JFrame {
         scrollPane.getViewport().setBackground(ModernTheme.SURFACE);
         panel.add(scrollPane, BorderLayout.CENTER);
         
+        // BUTTON PANEL
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         buttonPanel.setBackground(ModernTheme.BACKGROUND);
+        
+        // Hapus Button
+        deleteBudgetButton = new ModernButton("Hapus Budget", ModernTheme.DANGER, new Color(220, 100, 90));
+        deleteBudgetButton.setPreferredSize(new Dimension(150, 40));
+        buttonPanel.add(deleteBudgetButton);
+        
+        // Tambah Button
         addBudgetButton = new ModernButton(LocalizationUtils.getString("budget.add"), ModernTheme.SUCCESS, new Color(100, 200, 90));
         addBudgetButton.setPreferredSize(new Dimension(150, 40));
         buttonPanel.add(addBudgetButton);
+        
         panel.add(buttonPanel, BorderLayout.SOUTH);
         
         return panel;
@@ -371,12 +380,17 @@ public class MainFrameModern extends JFrame {
     public void setAvailableCategories(List<String> categories) { transactionCategoryCombo.removeAllItems(); for (String cat : categories) transactionCategoryCombo.addItem(cat); }
     public String getSelectedAccount() { return (String) accountCombo.getSelectedItem(); }
     public String getTransactionType() { return (String) transactionTypeCombo.getSelectedItem(); }
+    public int getTransactionTypeIndex() { return transactionTypeCombo.getSelectedIndex(); } // Getter Index
     public String getTransactionCategory() { return (String) transactionCategoryCombo.getSelectedItem(); }
     public String getTransactionAmount() { return transactionAmountField.getText(); }
     public String getTransactionDescription() { return transactionDescriptionField.getText(); }
+    
+    public int getSelectedBudgetRow() { return budgetTable.getSelectedRow(); } // Getter Row Budget
+    
     public void addTransactionListener(java.awt.event.ActionListener l) { addTransactionButton.addActionListener(l); }
     public void addTransactionTypeListener(java.awt.event.ActionListener l) { transactionTypeCombo.addActionListener(l); }
     public void addBudgetListener(java.awt.event.ActionListener l) { addBudgetButton.addActionListener(l); }
+    public void addDeleteBudgetListener(java.awt.event.ActionListener l) { deleteBudgetButton.addActionListener(l); } // Listener Hapus
     public void addGoalListener(java.awt.event.ActionListener l) { addGoalButton.addActionListener(l); }
     public void clearTransactionForm() { transactionAmountField.setText(""); transactionDescriptionField.setText(""); }
 }
