@@ -188,7 +188,7 @@ public class RegisterDialogModern extends JDialog {
         formPanel.add(languageLabel);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
         
-        String[] languages = {"Bahasa Indonesia (id)", "English (en)", "中文 (zh)"};
+        String[] languages = {"Bahasa Indonesia (id)", "English (en)"}; 
         languageCombo = new JComboBox<>(languages);
         setupCombo(languageCombo);
         formPanel.add(languageCombo);

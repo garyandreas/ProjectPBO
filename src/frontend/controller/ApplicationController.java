@@ -4,6 +4,7 @@ import backend.models.*;
 import backend.services.*;
 import frontend.ui.*;
 import java.util.*;
+import backend.utils.LocalizationUtils;
 
 public class ApplicationController {
     private UserService userService;
@@ -47,6 +48,11 @@ public class ApplicationController {
             this.currentUser = user;
             System.out.println("✅ Login SUCCESS: " + user.getFullName());
             
+            // === [BARU] SET LANGUAGE ===
+            // Set bahasa aplikasi berdasarkan preferensi user
+            LocalizationUtils.setLanguage(user.getLanguage());
+            System.out.println("🌍 Language set to: " + user.getLanguage());
+
             // Reload All Data
             accountService.reloadFromFile();
             categoryService.reloadFromFile();
@@ -212,6 +218,8 @@ public class ApplicationController {
         String category = mainFrame.getTransactionCategory();
         String amountStr = mainFrame.getTransactionAmount();
         String description = mainFrame.getTransactionDescription();
+        String selectedType = mainFrame.getTransactionType();
+        Transaction.TransactionType transType;
         
         double amount;
         try {
@@ -224,6 +232,12 @@ public class ApplicationController {
         if (amount <= 0) {
             javax.swing.JOptionPane.showMessageDialog(mainFrame, "Jumlah harus lebih dari 0!");
             return;
+        }
+        
+        if (selectedType.equals(LocalizationUtils.getString("trans.type.income")) || selectedType.equals("Pemasukan")) {
+            transType = Transaction.TransactionType.INCOME;
+        } else {
+            transType = Transaction.TransactionType.EXPENSE;
         }
         
         Transaction.TransactionType transType = type.equals("Pemasukan") ? 
