@@ -1,27 +1,25 @@
 package frontend.ui;
 
 import frontend.theme.*;
-import backend.utils.LocalizationUtils; // Import baru
+import backend.utils.LocalizationUtils;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.ActionListener;
-import java.text.DecimalFormat;
+import java.util.Map;
 
 public class MainFrameModern extends JFrame {
     private JTabbedPane tabbedPane;
     private JLabel userGreetingLabel;
     
-    // Dashboard
+    // Dashboard Components
     private JLabel totalBalanceValueLabel;
     private JLabel totalIncomeValueLabel;
     private JLabel totalExpenseValueLabel;
     private JLabel totalSavingValueLabel;
-    private JLabel totalBalanceTitle;
-    private JLabel totalIncomeTitle;
-    private JLabel totalExpenseTitle;
-    private JLabel totalSavingTitle;
+    
+    // CHART BARU
+    private SimpleBarChart simpleChart; 
     
     // Transaction Form
     private JComboBox<String> transactionTypeCombo;
@@ -30,29 +28,19 @@ public class MainFrameModern extends JFrame {
     private ModernTextField transactionAmountField;
     private ModernTextField transactionDescriptionField;
     private ModernButton addTransactionButton;
-    private JLabel transactionAccountLabel;
-    private JLabel transactionTypeLabel;
-    private JLabel transactionCategoryLabel;
-    private JLabel transactionAmountLabel;
-    private JLabel transactionDescLabel;
     
-    // Budget
+    // Budget & Goals & Report
     private JTable budgetTable;
     private DefaultTableModel budgetTableModel;
     private ModernButton addBudgetButton;
-    
-    // Goals
     private JPanel goalsPanel;
     private ModernButton addGoalButton;
-    private JLabel emptyGoalLabel;
-    
-    // Report
     private JTextArea reportArea;
     
     public MainFrameModern() {
         setTitle(LocalizationUtils.getString("app.title"));
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        setSize(1200, 750);
+        setSize(1200, 800);
         setLocationRelativeTo(null);
         setResizable(true);
         setBackground(ModernTheme.BACKGROUND);
@@ -72,7 +60,6 @@ public class MainFrameModern extends JFrame {
         tabbedPane.setBackground(ModernTheme.BACKGROUND);
         tabbedPane.setForeground(ModernTheme.TEXT_PRIMARY);
         
-        // Gunakan LocalizationUtils untuk nama tab
         tabbedPane.addTab(LocalizationUtils.getString("tab.dashboard"), createDashboardPanel());
         tabbedPane.addTab(LocalizationUtils.getString("tab.transaction"), createTransactionPanel());
         tabbedPane.addTab(LocalizationUtils.getString("tab.budget"), createBudgetPanel());
@@ -80,10 +67,10 @@ public class MainFrameModern extends JFrame {
         tabbedPane.addTab(LocalizationUtils.getString("tab.report"), createReportPanel());
         
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
-        
         add(mainPanel);
     }
     
+    // --- DASHBOARD SECTION ---
     private JPanel createHeaderPanel() {
         JPanel headerPanel = new JPanel() {
             @Override
@@ -91,18 +78,15 @@ public class MainFrameModern extends JFrame {
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setColor(ModernTheme.PRIMARY);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
-                
                 g2d.setColor(ModernTheme.PRIMARY_LIGHT);
                 g2d.setStroke(new BasicStroke(1));
                 g2d.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
             }
         };
-        headerPanel.setPreferredSize(new Dimension(1200, 100));
+        headerPanel.setPreferredSize(new Dimension(1200, 80));
         headerPanel.setLayout(new BorderLayout());
-        headerPanel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
-                                             ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
+        headerPanel.setBorder(new EmptyBorder(ModernTheme.SPACING_MD, ModernTheme.SPACING_LG, ModernTheme.SPACING_MD, ModernTheme.SPACING_LG));
         
-        // Greeting default
         userGreetingLabel = new JLabel(LocalizationUtils.getString("msg.welcome"));
         userGreetingLabel.setFont(ModernTheme.FONT_TITLE);
         userGreetingLabel.setForeground(Color.WHITE);
@@ -115,32 +99,57 @@ public class MainFrameModern extends JFrame {
         headerContentPanel.setOpaque(false);
         headerContentPanel.setLayout(new BoxLayout(headerContentPanel, BoxLayout.Y_AXIS));
         headerContentPanel.add(userGreetingLabel);
-        headerContentPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
         headerContentPanel.add(subtitleLabel);
         
         headerPanel.add(headerContentPanel, BorderLayout.WEST);
-        
         return headerPanel;
     }
     
     private JPanel createDashboardPanel() {
         JPanel panel = new JPanel();
         panel.setBackground(ModernTheme.BACKGROUND);
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(new EmptyBorder(ModernTheme.SPACING_XL, ModernTheme.SPACING_LG,
-                                        ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
+        panel.setLayout(new BorderLayout()); 
+        panel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
         
-        panel.add(createSummaryPanel());
-        panel.add(Box.createVerticalGlue());
+        // 1. Summary Cards (Top)
+        panel.add(createSummaryPanel(), BorderLayout.NORTH);
+        
+        // 2. Chart Section (Center)
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setBackground(ModernTheme.BACKGROUND);
+        centerPanel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, 0, ModernTheme.SPACING_LG, 0));
+        
+        JLabel chartTitle = new JLabel("Grafik Pengeluaran per Kategori");
+        chartTitle.setFont(ModernTheme.FONT_SUBTITLE);
+        chartTitle.setForeground(ModernTheme.TEXT_PRIMARY);
+        centerPanel.add(chartTitle, BorderLayout.NORTH);
+        
+        simpleChart = new SimpleBarChart();
+        centerPanel.add(simpleChart, BorderLayout.CENTER);
+        
+        panel.add(centerPanel, BorderLayout.CENTER);
+        
+        // 3. [BARU] Quick Action Button (South)
+        JPanel southPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        southPanel.setBackground(ModernTheme.BACKGROUND);
+        
+        ModernButton quickAddBtn = new ModernButton("+ Catat Transaksi", ModernTheme.PRIMARY, ModernTheme.PRIMARY_LIGHT);
+        quickAddBtn.setPreferredSize(new Dimension(180, 45));
+        
+        // Aksi: Pindah ke tab "Transaksi" (index 1)
+        quickAddBtn.addActionListener(e -> tabbedPane.setSelectedIndex(1));
+        
+        southPanel.add(quickAddBtn);
+        panel.add(southPanel, BorderLayout.SOUTH);
         
         return panel;
     }
     
     private JPanel createSummaryPanel() {
         JPanel panel = new JPanel();
-        panel.setLayout(new GridLayout(2, 2, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
+        panel.setLayout(new GridLayout(1, 4, ModernTheme.SPACING_MD, 0));
         panel.setBackground(ModernTheme.BACKGROUND);
-        panel.setMaximumSize(new Dimension(1000, 300));
+        panel.setPreferredSize(new Dimension(1000, 100));
         
         String symbol = LocalizationUtils.getCurrencySymbol();
         
@@ -166,265 +175,171 @@ public class MainFrameModern extends JFrame {
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2d.setColor(bgColor);
-                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
             }
         };
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(bgColor);
-        card.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
-                                       ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
         card.setOpaque(false);
+        card.setBorder(new EmptyBorder(15, 15, 15, 15));
         
         JLabel titleLabel = new JLabel(title);
         titleLabel.setForeground(new Color(255, 255, 255, 220));
-        titleLabel.setFont(ModernTheme.FONT_BODY);
+        titleLabel.setFont(ModernTheme.FONT_BODY_BOLD);
         
         valueLabel.setForeground(Color.WHITE);
-        valueLabel.setFont(ModernTheme.FONT_TITLE_LARGE);
+        valueLabel.setFont(ModernTheme.FONT_TITLE);
         
         card.add(titleLabel);
-        card.add(Box.createVerticalStrut(ModernTheme.SPACING_MD));
+        card.add(Box.createVerticalGlue());
         card.add(valueLabel);
         
         return card;
     }
     
-    private JPanel createTransactionPanel() {
-        JPanel panel = new JPanel();
-        panel.setBackground(ModernTheme.BACKGROUND);
-        panel.setLayout(new BorderLayout());
-        panel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
-                                        ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
-        
-        panel.add(createTransactionFormPanel(), BorderLayout.CENTER);
-        return panel;
-    }
-    
+    // --- TRANSACTION SECTION ---
     private JPanel createTransactionFormPanel() {
         JPanel panel = new JPanel();
         panel.setBackground(ModernTheme.BACKGROUND);
         panel.setLayout(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(LocalizationUtils.getString("trans.title")));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(ModernTheme.BORDER),
+            BorderFactory.createEmptyBorder(20, 20, 20, 20)
+        ));
         
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(ModernTheme.SPACING_MD, ModernTheme.SPACING_MD,
-                               ModernTheme.SPACING_MD, ModernTheme.SPACING_MD);
+        gbc.insets = new Insets(ModernTheme.SPACING_SM, ModernTheme.SPACING_MD, ModernTheme.SPACING_SM, ModernTheme.SPACING_MD);
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        
+        // Form Title
+        JLabel title = new JLabel(LocalizationUtils.getString("trans.title"));
+        title.setFont(ModernTheme.FONT_SUBTITLE);
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        panel.add(title, gbc);
+        
+        // Reset gridwidth
+        gbc.gridwidth = 1;
+        gbc.gridy++;
         
         // Account
-        gbc.gridx = 0; gbc.gridy = 0;
-        transactionAccountLabel = new JLabel(LocalizationUtils.getString("trans.account"));
-        transactionAccountLabel.setFont(ModernTheme.FONT_BODY_BOLD);
-        panel.add(transactionAccountLabel, gbc);
-        
+        gbc.gridx = 0; 
+        panel.add(createLabel(LocalizationUtils.getString("trans.account")), gbc);
         gbc.gridx = 1;
         accountCombo = new JComboBox<>();
-        accountCombo.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
-        accountCombo.setFont(ModernTheme.FONT_BODY);
+        styleComboBox(accountCombo);
         panel.add(accountCombo, gbc);
         
         // Type
-        gbc.gridx = 0; gbc.gridy = 1;
-        transactionTypeLabel = new JLabel(LocalizationUtils.getString("trans.type"));
-        transactionTypeLabel.setFont(ModernTheme.FONT_BODY_BOLD);
-        panel.add(transactionTypeLabel, gbc);
-        
+        gbc.gridy++; gbc.gridx = 0;
+        panel.add(createLabel(LocalizationUtils.getString("trans.type")), gbc);
         gbc.gridx = 1;
         transactionTypeCombo = new JComboBox<>(new String[]{
             LocalizationUtils.getString("trans.type.income"), 
             LocalizationUtils.getString("trans.type.expense")
         });
-        transactionTypeCombo.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
-        transactionTypeCombo.setFont(ModernTheme.FONT_BODY);
-        transactionTypeCombo.addActionListener(e -> updateCategoryCombo());
+        styleComboBox(transactionTypeCombo);
         panel.add(transactionTypeCombo, gbc);
         
         // Category
-        gbc.gridx = 0; gbc.gridy = 2;
-        transactionCategoryLabel = new JLabel(LocalizationUtils.getString("trans.category"));
-        transactionCategoryLabel.setFont(ModernTheme.FONT_BODY_BOLD);
-        panel.add(transactionCategoryLabel, gbc);
-        
+        gbc.gridy++; gbc.gridx = 0;
+        panel.add(createLabel(LocalizationUtils.getString("trans.category")), gbc);
         gbc.gridx = 1;
         transactionCategoryCombo = new JComboBox<>();
-        transactionCategoryCombo.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
-        transactionCategoryCombo.setFont(ModernTheme.FONT_BODY);
+        styleComboBox(transactionCategoryCombo);
         panel.add(transactionCategoryCombo, gbc);
         
-        updateCategoryCombo();
-        
         // Amount
-        gbc.gridx = 0; gbc.gridy = 3;
-        transactionAmountLabel = new JLabel(LocalizationUtils.getString("trans.amount"));
-        transactionAmountLabel.setFont(ModernTheme.FONT_BODY_BOLD);
-        panel.add(transactionAmountLabel, gbc);
-        
+        gbc.gridy++; gbc.gridx = 0;
+        panel.add(createLabel(LocalizationUtils.getString("trans.amount")), gbc);
         gbc.gridx = 1;
         transactionAmountField = new ModernTextField();
-        transactionAmountField.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
         panel.add(transactionAmountField, gbc);
         
         // Description
-        gbc.gridx = 0; gbc.gridy = 4;
-        transactionDescLabel = new JLabel(LocalizationUtils.getString("trans.desc"));
-        transactionDescLabel.setFont(ModernTheme.FONT_BODY_BOLD);
-        panel.add(transactionDescLabel, gbc);
-        
+        gbc.gridy++; gbc.gridx = 0;
+        panel.add(createLabel(LocalizationUtils.getString("trans.desc")), gbc);
         gbc.gridx = 1;
         transactionDescriptionField = new ModernTextField();
-        transactionDescriptionField.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
         panel.add(transactionDescriptionField, gbc);
         
-        // Submit Button
-        gbc.gridx = 0; gbc.gridy = 5;
-        gbc.gridwidth = 2;
+        // Button
+        gbc.gridy++; gbc.gridx = 0; gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.insets = new Insets(20, 0, 0, 0); // Add top margin
+        
         addTransactionButton = new ModernButton(LocalizationUtils.getString("trans.btn"), ModernTheme.PRIMARY, ModernTheme.PRIMARY_LIGHT);
-        addTransactionButton.setPreferredSize(new Dimension(300, ModernTheme.BUTTON_HEIGHT));
+        addTransactionButton.setPreferredSize(new Dimension(200, 40));
         panel.add(addTransactionButton, gbc);
         
         return panel;
     }
     
-    private JPanel createBudgetPanel() {
-        JPanel panel = new JPanel();
+    private JPanel createTransactionPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(ModernTheme.BACKGROUND);
-        panel.setLayout(new BorderLayout());
-        panel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
-                                        ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
         
-        String[] columnNames = {
-            LocalizationUtils.getString("col.category"),
-            LocalizationUtils.getString("col.budget"),
-            LocalizationUtils.getString("col.used"),
-            LocalizationUtils.getString("col.remaining"),
-            LocalizationUtils.getString("col.status")
-        };
+        // Center the form
+        JPanel centerWrapper = new JPanel(new GridBagLayout());
+        centerWrapper.setBackground(ModernTheme.BACKGROUND);
+        centerWrapper.add(createTransactionFormPanel());
         
-        budgetTableModel = new DefaultTableModel(new Object[][] {}, columnNames);
-        budgetTable = new JTable(budgetTableModel);
-        budgetTable.setEnabled(false);
-        budgetTable.setFont(ModernTheme.FONT_BODY);
-        
-        panel.add(new JScrollPane(budgetTable), BorderLayout.CENTER);
-        
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(ModernTheme.BACKGROUND);
+        panel.add(centerWrapper, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JLabel createLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(ModernTheme.FONT_BODY_BOLD);
+        label.setForeground(ModernTheme.TEXT_PRIMARY);
+        return label;
+    }
+    
+    private void styleComboBox(JComboBox box) {
+        box.setPreferredSize(new Dimension(300, 40));
+        box.setFont(ModernTheme.FONT_BODY);
+        box.setBackground(ModernTheme.SURFACE);
+    }
+
+    // --- OTHER TABS ---
+    private JPanel createBudgetPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(ModernTheme.BACKGROUND);
         addBudgetButton = new ModernButton(LocalizationUtils.getString("budget.add"), ModernTheme.SUCCESS, new Color(100, 200, 90));
-        buttonPanel.add(addBudgetButton);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
+        panel.add(addBudgetButton, BorderLayout.SOUTH);
         
+        String[] cols = {LocalizationUtils.getString("col.category"), LocalizationUtils.getString("col.budget"), "Status"};
+        budgetTableModel = new DefaultTableModel(new Object[][]{}, cols);
+        budgetTable = new JTable(budgetTableModel);
+        panel.add(new JScrollPane(budgetTable), BorderLayout.CENTER);
         return panel;
     }
     
     private JPanel createGoalPanel() {
-        JPanel panel = new JPanel();
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(ModernTheme.BACKGROUND);
-        panel.setLayout(new BorderLayout());
-        panel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
-                                        ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
-        
-        goalsPanel = new JPanel();
-        goalsPanel.setBackground(ModernTheme.BACKGROUND);
-        goalsPanel.setLayout(new BoxLayout(goalsPanel, BoxLayout.Y_AXIS));
-        
-        // Empty Label handled in Controller/Update method generally, but adding init here
-        emptyGoalLabel = new JLabel(LocalizationUtils.getString("goal.empty"));
-        emptyGoalLabel.setFont(ModernTheme.FONT_BODY);
-        goalsPanel.add(emptyGoalLabel);
-        
-        panel.add(new JScrollPane(goalsPanel), BorderLayout.CENTER);
-        
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setBackground(ModernTheme.BACKGROUND);
         addGoalButton = new ModernButton(LocalizationUtils.getString("goal.add"), ModernTheme.WARNING, new Color(220, 180, 60));
-        buttonPanel.add(addGoalButton);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        
+        panel.add(addGoalButton, BorderLayout.SOUTH);
+        goalsPanel = new JPanel();
+        panel.add(new JScrollPane(goalsPanel), BorderLayout.CENTER);
         return panel;
     }
     
     private JPanel createReportPanel() {
-        JPanel panel = new JPanel();
-        panel.setBackground(ModernTheme.BACKGROUND);
-        panel.setLayout(new BorderLayout());
-        panel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
-                                        ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
-        
-        reportArea = new JTextArea();
-        reportArea.setFont(ModernTheme.FONT_BODY);
+        JPanel panel = new JPanel(new BorderLayout());
+        reportArea = new JTextArea(LocalizationUtils.getString("report.empty"));
         reportArea.setEditable(false);
-        reportArea.setBackground(ModernTheme.SURFACE);
-        reportArea.setForeground(ModernTheme.TEXT_PRIMARY);
-        reportArea.setText(LocalizationUtils.getString("report.empty"));
-        
         panel.add(new JScrollPane(reportArea), BorderLayout.CENTER);
         return panel;
     }
-    
-    private void updateCategoryCombo() {
-        String selectedType = (String) transactionTypeCombo.getSelectedItem();
-        transactionCategoryCombo.removeAllItems();
-        
-        // Gunakan string dari resource untuk perbandingan
-        if (LocalizationUtils.getString("trans.type.income").equals(selectedType)) {
-            transactionCategoryCombo.addItem("Gaji");
-            transactionCategoryCombo.addItem("Bonus");
-            transactionCategoryCombo.addItem("Investasi");
-            transactionCategoryCombo.addItem("Lainnya");
-        } else {
-            transactionCategoryCombo.addItem("Konsumsi");
-            transactionCategoryCombo.addItem("Transportasi");
-            transactionCategoryCombo.addItem("Hiburan");
-            transactionCategoryCombo.addItem("Kesehatan");
-            transactionCategoryCombo.addItem("Pendidikan");
-            transactionCategoryCombo.addItem("Lainnya");
-        }
-    }
+
+    // --- METHODS ---
     
     public void setUserGreeting(String username) {
         userGreetingLabel.setText(LocalizationUtils.getString("msg.welcome") + ", " + username + "!");
     }
-    
-    // Getters
-    public JComboBox<String> getTransactionTypeCombo() { return transactionTypeCombo; }
-    public JComboBox<String> getTransactionCategoryCombo() { return transactionCategoryCombo; }
-    public JComboBox<String> getAccountCombo() { return accountCombo; }
-    public String getTransactionAmount() { return transactionAmountField.getText(); }
-    public String getTransactionDescription() { return transactionDescriptionField.getText(); }
-    public ModernButton getAddTransactionButton() { return addTransactionButton; }
-    public ModernButton getAddBudgetButton() { return addBudgetButton; }
-    public ModernButton getAddGoalButton() { return addGoalButton; }
-    public JTable getBudgetTable() { return budgetTable; }
-    public DefaultTableModel getBudgetTableModel() { return budgetTableModel; }
-    public JPanel getGoalsPanel() { return goalsPanel; }
-    public JTextArea getReportArea() { return reportArea; }
-    
-    public void clearTransactionForm() {
-        transactionAmountField.setText("");
-        transactionDescriptionField.setText("");
-    }
-    
-    public void setAvailableAccounts(java.util.List<String> accounts) {
-        accountCombo.removeAllItems();
-        for (String account : accounts) {
-            accountCombo.addItem(account);
-        }
-    }
-    
-    public void addTransactionListener(javax.swing.event.ChangeListener listener) {
-        addTransactionButton.addActionListener(l -> listener.stateChanged(new javax.swing.event.ChangeEvent(this)));
-    }
-    public void addBudgetListener(javax.swing.event.ChangeListener listener) {
-        addBudgetButton.addActionListener(l -> listener.stateChanged(new javax.swing.event.ChangeEvent(this)));
-    }
-    public void addGoalListener(javax.swing.event.ChangeListener listener) {
-        addGoalButton.addActionListener(l -> listener.stateChanged(new javax.swing.event.ChangeEvent(this)));
-    }
-    
-    public String getSelectedAccount() { return (String) accountCombo.getSelectedItem(); }
-    public String getTransactionType() { return (String) transactionTypeCombo.getSelectedItem(); }
-    public String getTransactionCategory() { return (String) transactionCategoryCombo.getSelectedItem(); }
     
     public void updateDashboard(double totalBalance, double income, double expense, double saving) {
         String symbol = LocalizationUtils.getCurrencySymbol();
@@ -432,5 +347,42 @@ public class MainFrameModern extends JFrame {
         totalIncomeValueLabel.setText(String.format("%s %,.0f", symbol, income));
         totalExpenseValueLabel.setText(String.format("%s %,.0f", symbol, expense));
         totalSavingValueLabel.setText(String.format("%s %,.0f", symbol, saving));
+    }
+    
+    // UPDATE GRAFIK
+    public void updateExpenseChart(Map<String, Double> categoryExpenses) {
+        if (simpleChart != null) {
+            simpleChart.setData(categoryExpenses);
+        }
+    }
+    
+    public void setAvailableAccounts(java.util.List<String> accounts) {
+        accountCombo.removeAllItems();
+        for (String acc : accounts) accountCombo.addItem(acc);
+    }
+    
+    public void setAvailableCategories(java.util.List<String> categories) {
+        transactionCategoryCombo.removeAllItems();
+        for (String cat : categories) transactionCategoryCombo.addItem(cat);
+    }
+    
+    public String getSelectedAccount() { return (String) accountCombo.getSelectedItem(); }
+    public String getTransactionType() { return (String) transactionTypeCombo.getSelectedItem(); }
+    public String getTransactionCategory() { return (String) transactionCategoryCombo.getSelectedItem(); }
+    public String getTransactionAmount() { return transactionAmountField.getText(); }
+    public String getTransactionDescription() { return transactionDescriptionField.getText(); }
+    
+    public void addTransactionListener(java.awt.event.ActionListener l) { addTransactionButton.addActionListener(l); }
+    public void addBudgetListener(java.awt.event.ActionListener l) { addBudgetButton.addActionListener(l); }
+    public void addGoalListener(java.awt.event.ActionListener l) { addGoalButton.addActionListener(l); }
+    
+    // LISTENER TIPE TRANSAKSI
+    public void addTransactionTypeListener(java.awt.event.ActionListener l) {
+        transactionTypeCombo.addActionListener(l);
+    }
+    
+    public void clearTransactionForm() {
+        transactionAmountField.setText("");
+        transactionDescriptionField.setText("");
     }
 }
