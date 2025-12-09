@@ -38,7 +38,6 @@ public class ReportPanel extends JPanel {
 
     // Listener for filter changes (still used by controller, but triggered
     // externally)
-    private java.util.function.Consumer<FilterParams> onFilterChanged;
 
     public ReportPanel() {
         setLayout(new BorderLayout(20, 20));
@@ -149,7 +148,7 @@ public class ReportPanel extends JPanel {
     }
 
     public void setOnFilterListener(java.util.function.Consumer<FilterParams> listener) {
-        this.onFilterChanged = listener;
+        // this.onFilterChanged = listener; // Disabled
     }
 
     public void updateData(List<Transaction> transactions, Map<String, Double> expenseData, double totalIncome,
@@ -171,10 +170,9 @@ public class ReportPanel extends JPanel {
     private void updateTable(List<Transaction> transactions) {
         tableModel.setRowCount(0);
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        String symbol = LocalizationUtils.getCurrencySymbol();
 
         for (Transaction t : transactions) {
-            String date = t.getTransactionDate().format(fmt);
+            t.getTransactionDate().format(fmt);
             // Category name? We need Category Service or pass names?
             // To simplify, we can assume ApplicationController passes fully populated
             // objects or we fetch names there.

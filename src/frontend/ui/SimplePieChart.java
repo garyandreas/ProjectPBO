@@ -109,7 +109,6 @@ public class SimplePieChart extends JPanel {
             int colorIdx = 0;
 
             g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
-            FontMetrics fm = g2d.getFontMetrics();
 
             for (Map.Entry<String, Double> entry : data.entrySet()) {
                 g2d.setColor(colors[colorIdx % colors.length]);

@@ -253,7 +253,7 @@ public class RegisterDialogModern extends JDialog {
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_MD));
     }
 
-    private void setupCombo(JComboBox box) {
+    private void setupCombo(JComboBox<String> box) {
         box.setFont(ModernTheme.FONT_BODY);
         box.setBackground(ModernTheme.SURFACE);
         box.setForeground(ModernTheme.TEXT_PRIMARY);

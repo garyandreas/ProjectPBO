@@ -36,9 +36,7 @@ public class AplikasiKeuanganPribadi {
                 ApplicationController controller = new ApplicationController();
 
                 // Tampilkan login frame dari controller (dengan event handlers)
-                System.out.println("DEBUG: About to show login screen");
                 controller.showLoginScreen();
-                System.out.println("DEBUG: Login screen shown");
 
                 System.out.println("✅ Aplikasi berhasil dimulai!");
                 System.out.println("📝 Silahkan login atau daftar akun baru.\n");

@@ -8,7 +8,6 @@ import java.awt.*;
  * Modern Text Field - Dengan border & styling minimalis
  */
 public class ModernTextField extends JTextField {
-    private boolean isFocused = false;
 
     public ModernTextField() {
         this("");
@@ -36,7 +35,7 @@ public class ModernTextField extends JTextField {
 
         addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent e) {
-                isFocused = true;
+
                 Border focusedBorder = BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(ModernTheme.PRIMARY, 2),
                         BorderFactory.createEmptyBorder(ModernTheme.SPACING_SM, ModernTheme.SPACING_MD,
@@ -45,7 +44,7 @@ public class ModernTextField extends JTextField {
             }
 
             public void focusLost(java.awt.event.FocusEvent e) {
-                isFocused = false;
+
                 Border border = BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(ModernTheme.BORDER, 1),
                         BorderFactory.createEmptyBorder(ModernTheme.SPACING_SM, ModernTheme.SPACING_MD,

@@ -22,7 +22,6 @@ public class MainFrameModern extends JFrame {
     private JLabel totalBankValueLabel;
     private JLabel totalIncomeValueLabel;
     private JLabel totalExpenseValueLabel;
-    private JLabel totalSavingValueLabel;
     private ModernButton transferButton;
     private SimplePieChart expenseChart; // Changed to Pie
     private SimplePieChart incomePieChart; // Added Income Pie
@@ -42,10 +41,7 @@ public class MainFrameModern extends JFrame {
     private ModernButton deleteBudgetButton;
 
     // Goals & Report
-    private JPanel goalsPanel;
     private ModernButton addGoalButton;
-    private JLabel emptyGoalLabel;
-    private JTextArea reportArea;
 
     // Dashboard Period Selector
     private JComboBox<String> dashPeriodTypeCombo;
@@ -593,7 +589,7 @@ public class MainFrameModern extends JFrame {
         return label;
     }
 
-    private void styleComboBox(JComboBox box) {
+    private void styleComboBox(JComboBox<String> box) {
         box.setPreferredSize(new Dimension(300, 40));
         box.setFont(ModernTheme.FONT_BODY);
         box.setBackground(ModernTheme.SURFACE);

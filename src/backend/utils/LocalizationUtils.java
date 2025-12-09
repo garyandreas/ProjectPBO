@@ -2,7 +2,6 @@ package backend.utils;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Locale;
 
 public class LocalizationUtils {
     private static String currentLanguage = "id"; // Default
