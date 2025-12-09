@@ -12,16 +12,17 @@ import javax.swing.*;
  * 1. Pencatatan Transaksi (Pemasukan & Pengeluaran)
  * 2. Manajemen Account/Rekening
  * 3. Kategori Pengeluaran
- * 4. Budget Tracking dengan Alert
+ * 4. Budgeting
  * 5. Target Tabungan
  * 6. Laporan & Analisis
  * 7. Transaksi Berulang
  * 
- * Author: Praktikum PBO
- * Date: 2024
+ * Author: Kelompok 9 PBO (Gary Andreas, Farhan Eka Yudha, Albert Wujaya, Nur
+ * Diana, Azwa Zahira)
+ * Date: 2025
  */
 public class AplikasiKeuanganPribadi {
-    
+
     public static void main(String[] args) {
         // Jalankan aplikasi di Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
@@ -29,16 +30,16 @@ public class AplikasiKeuanganPribadi {
             System.out.println("  APLIKASI KEUANGAN PRIBADI");
             System.out.println("  Praktikum PBO - Semester 3");
             System.out.println("========================================\n");
-            
+
             try {
                 // Initialize Application Controller - ini yang handle semua logic
                 ApplicationController controller = new ApplicationController();
-                
+
                 // Tampilkan login frame dari controller (dengan event handlers)
                 System.out.println("DEBUG: About to show login screen");
                 controller.showLoginScreen();
                 System.out.println("DEBUG: Login screen shown");
-                
+
                 System.out.println("✅ Aplikasi berhasil dimulai!");
                 System.out.println("📝 Silahkan login atau daftar akun baru.\n");
             } catch (Exception e) {

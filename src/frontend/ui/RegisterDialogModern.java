@@ -12,20 +12,20 @@ public class RegisterDialogModern extends JDialog {
     private ModernTextField emailField;
     private JPasswordField passwordField;
     private JPasswordField confirmPasswordField;
-    
+
     // Step 2 Fields
     private ModernTextField pinField;
     private ModernTextField initialBalanceField;
     private JComboBox<String> currencyCombo;
     private JComboBox<String> mainGoalCombo;
     private JComboBox<String> languageCombo;
-    
+
     private ModernButton registerButton; // Tombol internal untuk trigger event
     private ModernButton cancelButton;
     private JLabel statusLabel;
     private JPanel formPanel;
-    private int currentStep = 1; 
-    
+    private int currentStep = 1;
+
     public RegisterDialogModern(JFrame parent) {
         super(parent, "Daftar Akun Baru", true);
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
@@ -33,15 +33,15 @@ public class RegisterDialogModern extends JDialog {
         setLocationRelativeTo(parent);
         setResizable(false);
         setBackground(ModernTheme.BACKGROUND);
-        
+
         initializeComponents();
     }
-    
+
     private void initializeComponents() {
         JPanel mainPanel = new JPanel();
         mainPanel.setBackground(ModernTheme.BACKGROUND);
         mainPanel.setLayout(new BorderLayout());
-        
+
         // Header
         JPanel headerPanel = new JPanel() {
             @Override
@@ -56,34 +56,36 @@ public class RegisterDialogModern extends JDialog {
         };
         headerPanel.setPreferredSize(new Dimension(450, 80));
         headerPanel.setLayout(new BorderLayout());
-        headerPanel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
+        headerPanel.setBorder(new EmptyBorder(ModernTheme.SPACING_LG, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
+                ModernTheme.SPACING_LG));
         JLabel titleLabel = new JLabel("Buat Akun Baru");
         titleLabel.setFont(ModernTheme.FONT_TITLE);
         titleLabel.setForeground(Color.WHITE);
         headerPanel.add(titleLabel, BorderLayout.WEST);
-        
+
         // Content
         JPanel contentPanel = new JPanel();
         contentPanel.setBackground(ModernTheme.BACKGROUND);
         contentPanel.setLayout(new BorderLayout());
-        contentPanel.setBorder(new EmptyBorder(ModernTheme.SPACING_XL, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG));
-        
+        contentPanel.setBorder(new EmptyBorder(ModernTheme.SPACING_XL, ModernTheme.SPACING_LG, ModernTheme.SPACING_LG,
+                ModernTheme.SPACING_LG));
+
         formPanel = new JPanel();
         formPanel.setBackground(ModernTheme.BACKGROUND);
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
         formPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         // --- STEP 1 FORM ---
-        
+
         // 1. Nama Lengkap (BARU)
         addLabelAndField("Nama Lengkap", fullNameField = new ModernTextField());
-        
+
         // 2. Username
         addLabelAndField("Username", usernameField = new ModernTextField());
-        
+
         // 3. Email
         addLabelAndField("Email", emailField = new ModernTextField());
-        
+
         // 4. Password
         JLabel passLabel = new JLabel("Password");
         passLabel.setFont(ModernTheme.FONT_BODY_BOLD);
@@ -91,7 +93,7 @@ public class RegisterDialogModern extends JDialog {
         passLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(passLabel);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
-        
+
         passwordField = createModernPasswordField();
         passwordField.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
         passwordField.setMaximumSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
@@ -106,7 +108,7 @@ public class RegisterDialogModern extends JDialog {
         confirmLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(confirmLabel);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
-        
+
         confirmPasswordField = createModernPasswordField();
         confirmPasswordField.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
         confirmPasswordField.setMaximumSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
@@ -120,38 +122,50 @@ public class RegisterDialogModern extends JDialog {
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
         buttonPanel.setMaximumSize(new Dimension(300, ModernTheme.BUTTON_HEIGHT + 10));
         buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         registerButton = new ModernButton("Lanjut", ModernTheme.SUCCESS, new Color(100, 200, 90));
         cancelButton = new ModernButton("Batal", ModernTheme.DANGER, new Color(220, 100, 90));
         registerButton.setPreferredSize(new Dimension(140, ModernTheme.BUTTON_HEIGHT));
         cancelButton.setPreferredSize(new Dimension(140, ModernTheme.BUTTON_HEIGHT));
-        
+
         buttonPanel.add(registerButton);
         buttonPanel.add(Box.createHorizontalStrut(ModernTheme.SPACING_MD));
         buttonPanel.add(cancelButton);
         formPanel.add(buttonPanel);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_MD));
-        
+
         statusLabel = new JLabel();
         statusLabel.setFont(ModernTheme.FONT_CAPTION);
         statusLabel.setForeground(ModernTheme.TEXT_HINT);
         statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(statusLabel);
-        
+
         contentPanel.add(formPanel, BorderLayout.WEST);
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         mainPanel.add(contentPanel, BorderLayout.CENTER);
+        // Enter Key Support for Step 1
+        java.awt.event.ActionListener submitAction = e -> registerButton.doClick();
+        fullNameField.addActionListener(submitAction);
+        usernameField.addActionListener(submitAction);
+        emailField.addActionListener(submitAction);
+        passwordField.addActionListener(submitAction);
+        confirmPasswordField.addActionListener(submitAction);
+
         add(mainPanel);
     }
 
     public void showSetupStep() {
         currentStep = 2;
         formPanel.removeAll();
-        
+
         // Step 2 Fields
         addLabelAndField("Buat PIN (6 Digit)", pinField = new ModernTextField());
         addLabelAndField("Saldo Awal (Rp)", initialBalanceField = new ModernTextField("0"));
-        
+
+        // Enter Key Support for Step 2
+        pinField.addActionListener(e -> registerButton.doClick());
+        initialBalanceField.addActionListener(e -> registerButton.doClick());
+
         // Currency
         JLabel currencyLabel = new JLabel("Pilih Mata Uang");
         currencyLabel.setFont(ModernTheme.FONT_BODY_BOLD);
@@ -159,13 +173,13 @@ public class RegisterDialogModern extends JDialog {
         currencyLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(currencyLabel);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
-        
-        String[] currencies = {"IDR (Rupiah)", "USD (Dollar)", "EUR (Euro)", "SGD (Singapore Dollar)"};
+
+        String[] currencies = { "IDR (Rupiah)", "USD (Dollar)", "EUR (Euro)", "SGD (Singapore Dollar)" };
         currencyCombo = new JComboBox<>(currencies);
         setupCombo(currencyCombo);
         formPanel.add(currencyCombo);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_MD));
-        
+
         // Main Goal
         JLabel goalLabel = new JLabel("Tujuan Utama");
         goalLabel.setFont(ModernTheme.FONT_BODY_BOLD);
@@ -173,13 +187,13 @@ public class RegisterDialogModern extends JDialog {
         goalLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(goalLabel);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
-        
-        String[] goals = {"Mengatur Pengeluaran", "Melacak Tagihan", "Menabung", "Investasi", "Bebas Hutang"};
+
+        String[] goals = { "Mengatur Pengeluaran", "Melacak Tagihan", "Menabung", "Investasi", "Bebas Hutang" };
         mainGoalCombo = new JComboBox<>(goals);
         setupCombo(mainGoalCombo);
         formPanel.add(mainGoalCombo);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_MD));
-        
+
         // Language
         JLabel languageLabel = new JLabel("Pilih Bahasa");
         languageLabel.setFont(ModernTheme.FONT_BODY_BOLD);
@@ -187,43 +201,43 @@ public class RegisterDialogModern extends JDialog {
         languageLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(languageLabel);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
-        
-        String[] languages = {"Bahasa Indonesia (id)", "English (en)"}; 
+
+        String[] languages = { "Bahasa Indonesia (id)", "English (en)" };
         languageCombo = new JComboBox<>(languages);
         setupCombo(languageCombo);
         formPanel.add(languageCombo);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_XL));
-        
+
         // Buttons
         JPanel buttonPanel = new JPanel();
         buttonPanel.setBackground(ModernTheme.BACKGROUND);
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
         buttonPanel.setMaximumSize(new Dimension(300, ModernTheme.BUTTON_HEIGHT + 10));
         buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
+
         ModernButton nextButton = new ModernButton("Selesai", ModernTheme.SUCCESS, new Color(100, 200, 90));
         ModernButton backButton = new ModernButton("Kembali", ModernTheme.PRIMARY, new Color(59, 89, 152));
-        
+
         nextButton.setPreferredSize(new Dimension(140, ModernTheme.BUTTON_HEIGHT));
         backButton.setPreferredSize(new Dimension(140, ModernTheme.BUTTON_HEIGHT));
-        
+
         backButton.addActionListener(e -> goBackToStep1());
-        
+
         // === PERBAIKAN FREEZE DI SINI ===
         // Kita trigger registerButton (yang terhubung ke Controller)
         // JANGAN override registerButton dengan nextButton!
-        nextButton.addActionListener(e -> registerButton.doClick()); 
-        
+        nextButton.addActionListener(e -> registerButton.doClick());
+
         buttonPanel.add(nextButton);
         buttonPanel.add(Box.createHorizontalStrut(ModernTheme.SPACING_MD));
         buttonPanel.add(backButton);
-        
+
         formPanel.add(buttonPanel);
-        
+
         formPanel.revalidate();
         formPanel.repaint();
     }
-    
+
     private void addLabelAndField(String labelText, JComponent field) {
         JLabel label = new JLabel(labelText);
         label.setFont(ModernTheme.FONT_BODY_BOLD);
@@ -231,14 +245,14 @@ public class RegisterDialogModern extends JDialog {
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(label);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_SM));
-        
+
         field.setPreferredSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
         field.setMaximumSize(new Dimension(300, ModernTheme.INPUT_HEIGHT));
         field.setAlignmentX(Component.LEFT_ALIGNMENT);
         formPanel.add(field);
         formPanel.add(Box.createVerticalStrut(ModernTheme.SPACING_MD));
     }
-    
+
     private void setupCombo(JComboBox box) {
         box.setFont(ModernTheme.FONT_BODY);
         box.setBackground(ModernTheme.SURFACE);
@@ -254,9 +268,9 @@ public class RegisterDialogModern extends JDialog {
         field.setBackground(ModernTheme.SURFACE);
         field.setForeground(ModernTheme.TEXT_PRIMARY);
         field.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(ModernTheme.BORDER, 1),
-            BorderFactory.createEmptyBorder(ModernTheme.SPACING_SM, ModernTheme.SPACING_MD, ModernTheme.SPACING_SM, ModernTheme.SPACING_MD)
-        ));
+                BorderFactory.createLineBorder(ModernTheme.BORDER, 1),
+                BorderFactory.createEmptyBorder(ModernTheme.SPACING_SM, ModernTheme.SPACING_MD, ModernTheme.SPACING_SM,
+                        ModernTheme.SPACING_MD)));
         return field;
     }
 
@@ -269,16 +283,37 @@ public class RegisterDialogModern extends JDialog {
     }
 
     // Getters
-    public String getFullName() { return fullNameField.getText(); } // BARU
-    public String getUsername() { return usernameField.getText(); }
-    public String getEmail() { return emailField.getText(); }
-    public String getPassword() { return new String(passwordField.getPassword()); }
-    public String getConfirmPassword() { return new String(confirmPasswordField.getPassword()); }
-    public String getPin() { return pinField != null ? pinField.getText() : ""; }
-    public String getInitialBalance() { return initialBalanceField != null ? initialBalanceField.getText() : "0"; }
-    
+    public String getFullName() {
+        return fullNameField.getText();
+    } // BARU
+
+    public String getUsername() {
+        return usernameField.getText();
+    }
+
+    public String getEmail() {
+        return emailField.getText();
+    }
+
+    public String getPassword() {
+        return new String(passwordField.getPassword());
+    }
+
+    public String getConfirmPassword() {
+        return new String(confirmPasswordField.getPassword());
+    }
+
+    public String getPin() {
+        return pinField != null ? pinField.getText() : "";
+    }
+
+    public String getInitialBalance() {
+        return initialBalanceField != null ? initialBalanceField.getText() : "0";
+    }
+
     public String getMainGoal() {
-        if (mainGoalCombo != null) return (String) mainGoalCombo.getSelectedItem();
+        if (mainGoalCombo != null)
+            return (String) mainGoalCombo.getSelectedItem();
         return "Mengatur Pengeluaran";
     }
 
@@ -289,7 +324,7 @@ public class RegisterDialogModern extends JDialog {
         }
         return "IDR";
     }
-    
+
     public String getLanguage() {
         if (languageCombo != null) {
             String selected = (String) languageCombo.getSelectedItem();
@@ -297,9 +332,20 @@ public class RegisterDialogModern extends JDialog {
         }
         return "id";
     }
-    
-    public int getCurrentStep() { return currentStep; }
-    public void addRegisterListener(java.awt.event.ActionListener listener) { registerButton.addActionListener(listener); }
-    public void addCancelListener(java.awt.event.ActionListener listener) { cancelButton.addActionListener(listener); }
-    public void setStatus(String status) { statusLabel.setText(status); }
+
+    public int getCurrentStep() {
+        return currentStep;
+    }
+
+    public void addRegisterListener(java.awt.event.ActionListener listener) {
+        registerButton.addActionListener(listener);
+    }
+
+    public void addCancelListener(java.awt.event.ActionListener listener) {
+        cancelButton.addActionListener(listener);
+    }
+
+    public void setStatus(String status) {
+        statusLabel.setText(status);
+    }
 }

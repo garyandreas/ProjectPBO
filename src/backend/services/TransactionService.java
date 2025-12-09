@@ -54,7 +54,7 @@ public class TransactionService {
 
         // 2. Update Saldo Akun
         boolean balanceUpdated = false;
-        if (type == Transaction.TransactionType.INCOME) {
+        if (type == Transaction.TransactionType.INCOME || type == Transaction.TransactionType.TRANSFER_IN) {
             balanceUpdated = accountService.updateBalance(accountId, amount);
         } else {
             balanceUpdated = accountService.updateBalance(accountId, -amount);

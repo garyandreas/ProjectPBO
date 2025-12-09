@@ -7,7 +7,7 @@ public class Transaction implements Serializable {
     private static final long serialVersionUID = 1L;
 
     public enum TransactionType {
-        INCOME, EXPENSE, TRANSFER
+        INCOME, EXPENSE, TRANSFER, TRANSFER_IN
     }
 
     private int transactionId;

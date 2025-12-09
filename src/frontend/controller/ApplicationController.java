@@ -119,6 +119,13 @@ public class ApplicationController {
         refreshGoalList();
     }
 
+    public void showLoginScreen() {
+        if (mainFrame != null)
+            mainFrame.setVisible(false);
+        loginFrame.setVisible(true);
+        currentUser = null;
+    }
+
     private void setupMainFrameHandlers() {
         mainFrame.addTransactionListener(e -> handleAddTransaction());
         mainFrame.addTransactionTypeListener(e -> refreshCategoryDropdown());
@@ -128,144 +135,180 @@ public class ApplicationController {
 
         mainFrame.addGoalListener(e -> handleAddGoal());
         mainFrame.setOnDepositGoal(this::handleDepositToGoal);
+
+        mainFrame.addTransferListener(e -> handleTransfer());
+
+        // Listeners for Dashboard Period & Reports
+        mainFrame.addDashboardFilterListener(e -> {
+            updateDashboard();
+            ReportPanel.FilterParams filter = mainFrame.getDashboardFilter();
+            updateReports(filter);
+        });
     }
 
-    // --- GOAL HANDLERS ---
-    private void handleAddGoal() {
-        GoalDialog dialog = new GoalDialog(mainFrame);
-        dialog.setVisible(true);
-
-        if (dialog.isConfirmed()) {
-            goalService.createGoal(currentUser.getUserId(),
-                    dialog.getGoalName(),
-                    dialog.getTargetAmount(),
-                    dialog.getTargetDate());
-            refreshGoalList();
-            JOptionPane.showMessageDialog(mainFrame, "Target Tabungan Berhasil Dibuat!");
-        }
-    }
-
-    private void handleDepositToGoal(FinancialGoal goal) {
+    private void handleTransfer() {
+        if (currentUser == null)
+            return;
         List<Account> accounts = accountService.getAccountsByUser(currentUser.getUserId());
         List<String> accNames = accounts.stream().map(Account::getAccountName).collect(Collectors.toList());
 
-        DepositDialog dialog = new DepositDialog(mainFrame, accNames);
+        TransferDialog dialog = new TransferDialog(mainFrame, accNames);
         dialog.setVisible(true);
 
         if (dialog.isConfirmed()) {
-            String accName = dialog.getSelectedAccountName();
+            String sourceName = dialog.getSourceAccount();
+            String targetName = dialog.getTargetAccount();
             double amount = dialog.getAmount();
-            Account acc = accounts.stream().filter(a -> a.getAccountName().equals(accName)).findFirst().orElse(null);
 
-            if (acc != null) {
-                // Cari kategori "Tabungan" atau buat baru
-                Category savingsCat = categoryService
+            if (sourceName.equals(targetName)) {
+                JOptionPane.showMessageDialog(mainFrame, "Akun asal dan tujuan tidak boleh sama!");
+                return;
+            }
+
+            Account sourceAcc = accounts.stream().filter(a -> a.getAccountName().equals(sourceName)).findFirst()
+                    .orElse(null);
+            Account targetAcc = accounts.stream().filter(a -> a.getAccountName().equals(targetName)).findFirst()
+                    .orElse(null);
+
+            if (sourceAcc != null && targetAcc != null && amount > 0) {
+                // Find or Create Transfer Category
+                Category transferCat = categoryService
                         .getCategoriesByType(currentUser.getUserId(), Category.CategoryType.EXPENSE).stream()
-                        .filter(c -> c.getCategoryName().equalsIgnoreCase("Tabungan")
-                                || c.getCategoryName().equalsIgnoreCase("Savings"))
+                        .filter(c -> c.getCategoryName().equalsIgnoreCase("Transfer")
+                                || c.getCategoryName().equalsIgnoreCase("Umum"))
                         .findFirst().orElse(null);
 
-                if (savingsCat == null) {
-                    savingsCat = categoryService.createCategory(currentUser.getUserId(), "Tabungan",
+                if (transferCat == null) {
+                    transferCat = categoryService.createCategory(currentUser.getUserId(), "Transfer",
                             Category.CategoryType.EXPENSE);
                 }
 
-                boolean success = transactionService.createTransaction(
-                        acc.getAccountId(),
-                        currentUser.getUserId(),
-                        savingsCat.getCategoryId(),
-                        Transaction.TransactionType.EXPENSE,
-                        amount,
-                        "Deposit ke: " + goal.getGoalName(),
-                        0,
-                        goal.getGoalId() // Link ke Goal
-                );
+                // 1. Transaction Out from Source (TRANSFER type)
+                boolean successOut = transactionService.createTransaction(
+                        sourceAcc.getAccountId(), currentUser.getUserId(), transferCat.getCategoryId(),
+                        Transaction.TransactionType.TRANSFER, amount, "Transfer ke " + targetName, 0);
 
-                if (success) {
-                    JOptionPane.showMessageDialog(mainFrame, "Berhasil menambah tabungan!");
+                if (successOut) {
+                    // 2. Transaction In to Target (TRANSFER_IN type)
+                    transactionService.createTransaction(
+                            targetAcc.getAccountId(), currentUser.getUserId(), transferCat.getCategoryId(),
+                            Transaction.TransactionType.TRANSFER_IN, amount, "Transfer dari " + sourceName, 0);
+
+                    JOptionPane.showMessageDialog(mainFrame, "Transfer Berhasil!");
                     updateDashboard();
-                    refreshGoalList(); // Refresh progress
                 } else {
-                    JOptionPane.showMessageDialog(mainFrame, "Gagal! Saldo tidak cukup.");
+                    JOptionPane.showMessageDialog(mainFrame, "Transfer Gagal. Saldo tidak cukup.");
                 }
+            } else {
+                JOptionPane.showMessageDialog(mainFrame, "Data transfer tidak valid.");
             }
         }
     }
 
-    private void refreshGoalList() {
-        if (mainFrame != null && currentUser != null) {
-            List<FinancialGoal> goals = goalService.getActiveGoals(currentUser.getUserId());
-            goals.addAll(goalService.getCompletedGoals(currentUser.getUserId()));
-            mainFrame.updateGoalList(goals);
-        }
-    }
+    // --- DASHBOARD & REPORTS ---
+    private void updateDashboard() {
+        if (mainFrame == null || currentUser == null)
+            return;
 
-    private void handleDeleteBudget() {
-        int selectedRow = mainFrame.getSelectedBudgetRow();
-        if (selectedRow >= 0 && currentBudgets != null && selectedRow < currentBudgets.size()) {
-            Budget selectedBudget = currentBudgets.get(selectedRow);
-            Category cat = categoryService.getCategoryById(selectedBudget.getCategoryId());
+        ReportPanel.FilterParams filter = mainFrame.getDashboardFilter();
+
+        List<Account> accounts = accountService.getAccountsByUser(currentUser.getUserId());
+        double totalBalance = 0; // Calculated below
+
+        double cashBalance = accounts.stream()
+                .filter(a -> a.getAccountType() == Account.AccountType.CASH)
+                .mapToDouble(Account::getBalance).sum();
+
+        double bankBalance = accounts.stream()
+                .filter(a -> a.getAccountType() == Account.AccountType.BANK)
+                .mapToDouble(Account::getBalance).sum();
+
+        // Explicit logic: Sum of Cash + Bank
+        totalBalance = cashBalance + bankBalance;
+
+        List<Transaction> transactions;
+        if ("Bulanan".equals(filter.periodType)) {
+            transactions = transactionService.getTransactionsByMonth(currentUser.getUserId(),
+                    java.time.YearMonth.of(filter.year, filter.month));
+        } else {
+            java.time.LocalDateTime start = java.time.LocalDate.of(filter.year, 1, 1).atStartOfDay();
+            java.time.LocalDateTime end = java.time.LocalDate.of(filter.year, 12, 31).atTime(23, 59, 59);
+            transactions = transactionService.getTransactionsByPeriod(currentUser.getUserId(), start, end);
+        }
+
+        double income = 0, expense = 0;
+        Map<String, Double> expenseByCategory = new HashMap<>();
+        Map<String, Double> incomeByCategory = new HashMap<>();
+
+        for (Transaction t : transactions) {
+            Category cat = categoryService.getCategoryById(t.getCategoryId());
             String catName = (cat != null) ? cat.getCategoryName() : "Unknown";
 
-            int confirm = JOptionPane.showConfirmDialog(mainFrame,
-                    "Hapus anggaran untuk kategori '" + catName + "'?",
-                    "Konfirmasi Hapus",
-                    JOptionPane.YES_NO_OPTION);
-
-            if (confirm == JOptionPane.YES_OPTION) {
-                boolean deleted = budgetService.deleteBudget(selectedBudget.getBudgetId());
-                if (deleted) {
-                    refreshBudgetTable();
-                    JOptionPane.showMessageDialog(mainFrame, "Budget dihapus.");
-                } else {
-                    JOptionPane.showMessageDialog(mainFrame, "Gagal menghapus.");
-                }
+            if (t.getTransactionType() == Transaction.TransactionType.INCOME) {
+                income += t.getAmount();
+                incomeByCategory.put(catName, incomeByCategory.getOrDefault(catName, 0.0) + t.getAmount());
+            } else if (t.getTransactionType() == Transaction.TransactionType.EXPENSE) {
+                expense += t.getAmount();
+                expenseByCategory.put(catName, expenseByCategory.getOrDefault(catName, 0.0) + t.getAmount());
             }
-        } else {
-            JOptionPane.showMessageDialog(mainFrame, "Pilih budget yang akan dihapus dari tabel.");
+            // TRANSFER/TRANSFER_IN types are excluded from Income/Expense totals/Charts
         }
+        mainFrame.updateDashboard(totalBalance, cashBalance, bankBalance, income, expense);
+        mainFrame.updateDashboardCharts(expenseByCategory, incomeByCategory);
+        refreshBudgetTable(); // Sync Budget tab with Dashboard Period
+
+        // Also update reports to ensure sync if called directly
+        ReportPanel.FilterParams reportFilter = mainFrame.getDashboardFilter();
+        updateReports(reportFilter);
     }
 
-    private void handleAddBudget() {
-        List<Category> expenseCats = categoryService.getCategoriesByType(currentUser.getUserId(),
-                Category.CategoryType.EXPENSE);
-        if (expenseCats.isEmpty()) {
-            JOptionPane.showMessageDialog(mainFrame, "Tidak ada kategori pengeluaran tersedia.");
+    private void updateReports(ReportPanel.FilterParams filter) {
+        if (mainFrame == null || currentUser == null)
             return;
+
+        List<Transaction> transactions;
+        if ("Bulanan".equals(filter.periodType)) {
+            transactions = transactionService.getTransactionsByMonth(currentUser.getUserId(),
+                    java.time.YearMonth.of(filter.year, filter.month));
+        } else {
+            java.time.LocalDateTime start = java.time.LocalDate.of(filter.year, 1, 1).atStartOfDay();
+            java.time.LocalDateTime end = java.time.LocalDate.of(filter.year, 12, 31).atTime(23, 59, 59);
+            transactions = transactionService.getTransactionsByPeriod(currentUser.getUserId(), start, end);
         }
 
-        JPanel panel = new JPanel(new java.awt.GridLayout(0, 1));
-        JComboBox<String> catCombo = new JComboBox<>();
-        for (Category c : expenseCats)
-            catCombo.addItem(c.getCategoryName());
-        JTextField limitField = new JTextField();
+        double income = 0, expense = 0;
+        Map<String, Double> expenseByCategory = new HashMap<>();
 
-        panel.add(new JLabel("Pilih Kategori:"));
-        panel.add(catCombo);
-        panel.add(new JLabel("Batas Anggaran (Rp):"));
-        panel.add(limitField);
+        // Create Map for Category Names to pass to ReportPanel
+        Map<Integer, String> categoryNames = new HashMap<>();
+        List<Category> allCats = categoryService.getCategoriesByUser(currentUser.getUserId());
+        for (Category c : allCats) {
+            categoryNames.put(c.getCategoryId(), c.getCategoryName());
+        }
 
-        int result = JOptionPane.showConfirmDialog(mainFrame, panel, "Buat Anggaran Baru", JOptionPane.OK_CANCEL_OPTION,
-                JOptionPane.PLAIN_MESSAGE);
-        if (result == JOptionPane.OK_OPTION) {
-            try {
-                String selectedCatName = (String) catCombo.getSelectedItem();
-                double limit = Double.parseDouble(limitField.getText());
-                Category selectedCat = expenseCats.stream().filter(c -> c.getCategoryName().equals(selectedCatName))
-                        .findFirst().orElse(null);
+        for (Transaction t : transactions) {
+            // Aggregate for Charts
+            if (t.getTransactionType() == Transaction.TransactionType.INCOME)
+                income += t.getAmount();
+            else if (t.getTransactionType() == Transaction.TransactionType.EXPENSE) {
+                expense += t.getAmount();
+                Category cat = categoryService.getCategoryById(t.getCategoryId());
+                String catName = (cat != null) ? cat.getCategoryName() : "Unknown";
+                expenseByCategory.put(catName, expenseByCategory.getOrDefault(catName, 0.0) + t.getAmount());
+            }
 
-                if (selectedCat != null) {
-                    budgetService.createBudget(currentUser.getUserId(), selectedCat.getCategoryId(), limit,
-                            Budget.BudgetPeriod.MONTHLY);
-                    JOptionPane.showMessageDialog(mainFrame, "Budget berhasil dibuat!");
-                    refreshBudgetTable();
-                }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(mainFrame, "Jumlah anggaran harus berupa angka!");
+            // Ensure category name is in map (fallback)
+            if (!categoryNames.containsKey(t.getCategoryId())) {
+                Category cat = categoryService.getCategoryById(t.getCategoryId());
+                categoryNames.put(t.getCategoryId(), (cat != null) ? cat.getCategoryName() : "Unknown");
             }
         }
+
+        // Pass full data to ReportPanel including raw transactions for the List & CSV
+        mainFrame.getReportPanel().updateData(transactions, categoryNames, expenseByCategory, income, expense);
     }
 
+    // --- TRANSACTION HANDLERS ---
     private void handleAddTransaction() {
         String accName = mainFrame.getSelectedAccount();
         String catName = mainFrame.getTransactionCategory();
@@ -309,20 +352,17 @@ public class ApplicationController {
         }
     }
 
-    private void refreshBudgetTable() {
-        if (mainFrame != null && currentUser != null) {
-            this.currentBudgets = budgetService.getBudgetsByUser(currentUser.getUserId());
-            mainFrame.updateBudgetTable(currentBudgets, categoryService);
-        }
-    }
-
     private void refreshAccountDropdown() {
+        if (currentUser == null)
+            return;
         List<Account> accounts = accountService.getAccountsByUser(currentUser.getUserId());
         List<String> names = accounts.stream().map(Account::getAccountName).collect(Collectors.toList());
         mainFrame.setAvailableAccounts(names);
     }
 
     private void refreshCategoryDropdown() {
+        if (currentUser == null)
+            return;
         int typeIndex = mainFrame.getTransactionTypeIndex();
         Category.CategoryType type = (typeIndex == 0) ? Category.CategoryType.INCOME : Category.CategoryType.EXPENSE;
 
@@ -331,36 +371,164 @@ public class ApplicationController {
         mainFrame.setAvailableCategories(names);
     }
 
-    private void updateDashboard() {
-        if (mainFrame == null || currentUser == null)
+    // --- BUDGET HANDLERS ---
+    private void handleAddBudget() {
+        List<Category> expenseCats = categoryService.getCategoriesByType(currentUser.getUserId(),
+                Category.CategoryType.EXPENSE);
+        if (expenseCats.isEmpty()) {
+            JOptionPane.showMessageDialog(mainFrame, "Tidak ada kategori pengeluaran tersedia.");
             return;
-        double totalBalance = accountService.getAccountsByUser(currentUser.getUserId()).stream()
-                .mapToDouble(Account::getBalance).sum();
-        List<Transaction> transactions = transactionService.getTransactionsByUser(currentUser.getUserId());
-        java.time.YearMonth currentMonth = java.time.YearMonth.now();
-        double income = 0, expense = 0;
-        Map<String, Double> expenseByCategory = new HashMap<>();
+        }
 
-        for (Transaction t : transactions) {
-            if (java.time.YearMonth.from(t.getTransactionDate()).equals(currentMonth)) {
-                if (t.getTransactionType() == Transaction.TransactionType.INCOME)
-                    income += t.getAmount();
-                else {
-                    expense += t.getAmount();
-                    Category cat = categoryService.getCategoryById(t.getCategoryId());
-                    String catName = (cat != null) ? cat.getCategoryName() : "Unknown";
-                    expenseByCategory.put(catName, expenseByCategory.getOrDefault(catName, 0.0) + t.getAmount());
+        JPanel panel = new JPanel(new java.awt.GridLayout(0, 1));
+        JComboBox<String> catCombo = new JComboBox<>();
+        for (Category c : expenseCats)
+            catCombo.addItem(c.getCategoryName());
+        JTextField limitField = new JTextField();
+
+        panel.add(new JLabel("Pilih Kategori:"));
+        panel.add(catCombo);
+        panel.add(new JLabel("Batas Anggaran (Rp):"));
+        panel.add(limitField);
+
+        int result = JOptionPane.showConfirmDialog(mainFrame, panel, "Buat Anggaran Baru", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+        if (result == JOptionPane.OK_OPTION) {
+            try {
+                String selectedCatName = (String) catCombo.getSelectedItem();
+                double limit = Double.parseDouble(limitField.getText());
+                Category selectedCat = expenseCats.stream().filter(c -> c.getCategoryName().equals(selectedCatName))
+                        .findFirst().orElse(null);
+
+                if (selectedCat != null) {
+                    budgetService.createBudget(currentUser.getUserId(), selectedCat.getCategoryId(), limit,
+                            Budget.BudgetPeriod.MONTHLY);
+                    JOptionPane.showMessageDialog(mainFrame, "Budget berhasil dibuat!");
+                    refreshBudgetTable();
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(mainFrame, "Jumlah anggaran harus berupa angka!");
+            }
+        }
+    }
+
+    private void handleDeleteBudget() {
+        int selectedRow = mainFrame.getSelectedBudgetRow();
+        if (selectedRow >= 0 && currentBudgets != null && selectedRow < currentBudgets.size()) {
+            Budget selectedBudget = currentBudgets.get(selectedRow);
+            Category cat = categoryService.getCategoryById(selectedBudget.getCategoryId());
+            String catName = (cat != null) ? cat.getCategoryName() : "Unknown";
+
+            int confirm = JOptionPane.showConfirmDialog(mainFrame,
+                    "Hapus anggaran untuk kategori '" + catName + "'?",
+                    "Konfirmasi Hapus",
+                    JOptionPane.YES_NO_OPTION);
+
+            if (confirm == JOptionPane.YES_OPTION) {
+                boolean deleted = budgetService.deleteBudget(selectedBudget.getBudgetId());
+                if (deleted) {
+                    refreshBudgetTable();
+                    JOptionPane.showMessageDialog(mainFrame, "Budget dihapus.");
+                } else {
+                    JOptionPane.showMessageDialog(mainFrame, "Gagal menghapus.");
+                }
+            }
+        } else {
+            JOptionPane.showMessageDialog(mainFrame, "Pilih budget yang akan dihapus dari tabel.");
+        }
+    }
+
+    private void refreshBudgetTable() {
+        if (mainFrame != null && currentUser != null) {
+            this.currentBudgets = budgetService.getBudgetsByUser(currentUser.getUserId());
+
+            ReportPanel.FilterParams filter = mainFrame.getDashboardFilter();
+            List<Transaction> transactions;
+            if ("Bulanan".equals(filter.periodType)) {
+                transactions = transactionService.getTransactionsByMonth(currentUser.getUserId(),
+                        java.time.YearMonth.of(filter.year, filter.month));
+            } else {
+                java.time.LocalDateTime start = java.time.LocalDate.of(filter.year, 1, 1).atStartOfDay();
+                java.time.LocalDateTime end = java.time.LocalDate.of(filter.year, 12, 31).atTime(23, 59, 59);
+                transactions = transactionService.getTransactionsByPeriod(currentUser.getUserId(), start, end);
+            }
+
+            Map<Integer, Double> spentMap = new HashMap<>();
+            for (Transaction t : transactions) {
+                if (t.getTransactionType() == Transaction.TransactionType.EXPENSE) {
+                    spentMap.put(t.getCategoryId(), spentMap.getOrDefault(t.getCategoryId(), 0.0) + t.getAmount());
+                }
+            }
+
+            mainFrame.updateBudgetTable(currentBudgets, categoryService, spentMap);
+        }
+    }
+
+    // --- GOAL HANDLERS ---
+    private void handleAddGoal() {
+        GoalDialog dialog = new GoalDialog(mainFrame);
+        dialog.setVisible(true);
+
+        if (dialog.isConfirmed()) {
+            goalService.createGoal(currentUser.getUserId(),
+                    dialog.getGoalName(),
+                    dialog.getTargetAmount(),
+                    dialog.getTargetDate());
+            refreshGoalList();
+            JOptionPane.showMessageDialog(mainFrame, "Target Tabungan Berhasil Dibuat!");
+        }
+    }
+
+    private void handleDepositToGoal(FinancialGoal goal) {
+        List<Account> accounts = accountService.getAccountsByUser(currentUser.getUserId());
+        List<String> accNames = accounts.stream().map(Account::getAccountName).collect(Collectors.toList());
+
+        DepositDialog dialog = new DepositDialog(mainFrame, accNames);
+        dialog.setVisible(true);
+
+        if (dialog.isConfirmed()) {
+            String accName = dialog.getSelectedAccountName();
+            double amount = dialog.getAmount();
+            Account acc = accounts.stream().filter(a -> a.getAccountName().equals(accName)).findFirst().orElse(null);
+
+            if (acc != null) {
+                Category savingsCat = categoryService
+                        .getCategoriesByType(currentUser.getUserId(), Category.CategoryType.EXPENSE).stream()
+                        .filter(c -> c.getCategoryName().equalsIgnoreCase("Tabungan")
+                                || c.getCategoryName().equalsIgnoreCase("Savings"))
+                        .findFirst().orElse(null);
+
+                if (savingsCat == null) {
+                    savingsCat = categoryService.createCategory(currentUser.getUserId(), "Tabungan",
+                            Category.CategoryType.EXPENSE);
+                }
+
+                boolean success = transactionService.createTransaction(
+                        acc.getAccountId(),
+                        currentUser.getUserId(),
+                        savingsCat.getCategoryId(),
+                        Transaction.TransactionType.EXPENSE,
+                        amount,
+                        "Deposit ke: " + goal.getGoalName(),
+                        0,
+                        goal.getGoalId());
+
+                if (success) {
+                    JOptionPane.showMessageDialog(mainFrame, "Berhasil menambah tabungan!");
+                    updateDashboard();
+                    refreshGoalList();
+                } else {
+                    JOptionPane.showMessageDialog(mainFrame, "Gagal! Saldo tidak cukup.");
                 }
             }
         }
-        mainFrame.updateDashboard(totalBalance, income, expense, totalBalance - expense);
-        mainFrame.updateExpenseChart(expenseByCategory);
     }
 
-    public void showLoginScreen() {
-        if (mainFrame != null)
-            mainFrame.setVisible(false);
-        loginFrame.setVisible(true);
-        currentUser = null;
+    private void refreshGoalList() {
+        if (mainFrame != null && currentUser != null) {
+            List<FinancialGoal> goals = goalService.getActiveGoals(currentUser.getUserId());
+            goals.addAll(goalService.getCompletedGoals(currentUser.getUserId()));
+            mainFrame.updateGoalList(goals);
+        }
     }
 }
