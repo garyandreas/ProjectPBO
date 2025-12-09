@@ -5,7 +5,7 @@ import java.time.YearMonth;
 
 public class Budget implements Serializable {
     private static final long serialVersionUID = 1L;
-    
+
     public enum BudgetPeriod {
         WEEKLY, MONTHLY, YEARLY
     }
@@ -34,24 +34,65 @@ public class Budget implements Serializable {
     }
 
     // Getters & Setters
-    public String getBudgetId() { return budgetId; }
-    public void setBudgetId(String budgetId) { this.budgetId = budgetId; }
+    public String getBudgetId() {
+        return budgetId;
+    }
 
-    public int getUserId() { return userId; }
-    public void setUserId(int userId) { this.userId = userId; }
+    public void setBudgetId(String budgetId) {
+        this.budgetId = budgetId;
+    }
 
-    public int getCategoryId() { return categoryId; }
-    public void setCategoryId(int categoryId) { this.categoryId = categoryId; }
+    public int getUserId() {
+        return userId;
+    }
 
-    public double getBudgetLimit() { return budgetLimit; }
-    public void setBudgetLimit(double limit) { this.budgetLimit = limit; }
+    public void setUserId(int userId) {
+        this.userId = userId;
+    }
 
-    public double getSpent() { return spent; }
-    public void setSpent(double spent) { this.spent = spent; }
+    public int getCategoryId() {
+        return categoryId;
+    }
 
-    public BudgetPeriod getPeriod() { return period; }
-    public void setPeriod(BudgetPeriod period) { this.period = period; }
-    
-    public YearMonth getMonthPeriod() { return monthPeriod; }
-    public void setMonthPeriod(YearMonth monthPeriod) { this.monthPeriod = monthPeriod; }
+    public void setCategoryId(int categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public double getBudgetLimit() {
+        return budgetLimit;
+    }
+
+    public void setBudgetLimit(double limit) {
+        this.budgetLimit = limit;
+    }
+
+    public double getSpent() {
+        return spent;
+    }
+
+    public void setSpent(double spent) {
+        this.spent = spent;
+    }
+
+    public BudgetPeriod getPeriod() {
+        return period;
+    }
+
+    public void setPeriod(BudgetPeriod period) {
+        this.period = period;
+    }
+
+    public YearMonth getMonthPeriod() {
+        return monthPeriod;
+    }
+
+    public void setMonthPeriod(YearMonth monthPeriod) {
+        this.monthPeriod = monthPeriod;
+    }
+
+    public double getSpentPercentage() {
+        if (budgetLimit == 0)
+            return 0;
+        return (spent / budgetLimit) * 100;
+    }
 }
